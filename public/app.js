@@ -1,11 +1,13 @@
-// Firebase configuration (will be filled in next task)
+// Firebase configuration
+// TODO: Replace these values with actual Firebase config from Firebase Console
+// Go to: Firebase Console → Project Settings → Your apps → Web app
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "YOUR_WEB_API_KEY_FROM_FIREBASE_CONSOLE",
   authDomain: "agent-drugs.firebaseapp.com",
   projectId: "agent-drugs",
   storageBucket: "agent-drugs.firebasestorage.app",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_WEB_APP_ID"
 };
 
 // Initialize Firebase
@@ -45,13 +47,25 @@ auth.onAuthStateChanged((user) => {
   }
 });
 
-// Sign in handlers (placeholder)
-googleSignInBtn.addEventListener('click', () => {
-  console.log('Google sign-in clicked');
+// Sign in handlers
+googleSignInBtn.addEventListener('click', async () => {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+  } catch (error) {
+    console.error('Google sign-in error:', error);
+    showError('Failed to sign in with Google. Please try again.');
+  }
 });
 
-githubSignInBtn.addEventListener('click', () => {
-  console.log('GitHub sign-in clicked');
+githubSignInBtn.addEventListener('click', async () => {
+  try {
+    const provider = new firebase.auth.GithubAuthProvider();
+    await auth.signInWithPopup(provider);
+  } catch (error) {
+    console.error('GitHub sign-in error:', error);
+    showError('Failed to sign in with GitHub. Please try again.');
+  }
 });
 
 signOutBtn.addEventListener('click', () => {
