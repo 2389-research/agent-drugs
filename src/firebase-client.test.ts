@@ -100,4 +100,41 @@ describe('FirebaseClient', () => {
       await expect(client.validateApiKey()).rejects.toThrow('Missing or empty userId');
     });
   });
+
+  describe('fetchDrugs', () => {
+    it('should fetch all drugs from Firestore', async () => {
+      const mockDrugs = [
+        {
+          name: 'focus',
+          prompt: 'You are extremely focused and detail-oriented.',
+          defaultDurationMinutes: 60,
+        },
+        {
+          name: 'creative',
+          prompt: 'You are highly creative and think outside the box.',
+          defaultDurationMinutes: 120,
+        },
+      ];
+
+      const mockFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          documents: mockDrugs.map(drug => ({
+            name: `projects/test/databases/(default)/documents/drugs/${drug.name}`,
+            fields: {
+              name: { stringValue: drug.name },
+              prompt: { stringValue: drug.prompt },
+              defaultDurationMinutes: { integerValue: drug.defaultDurationMinutes.toString() },
+            },
+          })),
+        }),
+      });
+      global.fetch = mockFetch as any;
+
+      const client = new FirebaseClient('https://firestore.googleapis.com/v1/projects/test/databases/(default)/documents', 'test_key');
+      const drugs = await client.fetchDrugs();
+
+      expect(drugs).toEqual(mockDrugs);
+    });
+  });
 });

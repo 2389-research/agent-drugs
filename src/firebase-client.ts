@@ -1,3 +1,9 @@
+export interface Drug {
+  name: string;
+  prompt: string;
+  defaultDurationMinutes: number;
+}
+
 export class FirebaseAuthError extends Error {
   constructor(message: string) {
     super(message);
@@ -53,5 +59,23 @@ export class FirebaseClient {
     }
 
     return data.userId;
+  }
+
+  async fetchDrugs(): Promise<Drug[]> {
+    const response = await fetch(`${this.apiUrl}/drugs`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch drugs: ${response.status}`);
+    }
+
+    const data = await response.json() as any;
+
+    return data.documents.map((doc: any) => ({
+      name: doc.fields.name.stringValue,
+      prompt: doc.fields.prompt.stringValue,
+      defaultDurationMinutes: parseInt(doc.fields.defaultDurationMinutes.integerValue, 10),
+    }));
   }
 }
