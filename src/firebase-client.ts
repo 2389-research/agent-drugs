@@ -18,18 +18,34 @@ export class FirebaseClient {
   ) {}
 
   async validateApiKey(): Promise<string> {
-    // Issue 1: Wrap fetch in try-catch to handle network errors
+    // Construct Firestore runQuery endpoint
+    const queryUrl = `${this.apiUrl}:runQuery`;
+
+    // Build structured query to find API key
+    const query = {
+      structuredQuery: {
+        from: [{ collectionId: 'api_keys' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'key' },
+            op: 'EQUAL',
+            value: { stringValue: this.apiKey }
+          }
+        },
+        limit: 1
+      }
+    };
+
     let response: Response;
     try {
-      response = await fetch(`${this.apiUrl}/validateApiKey`, {
+      response = await fetch(queryUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ apiKey: this.apiKey }),
+        body: JSON.stringify(query),
       });
     } catch (error) {
-      // Convert network errors to FirebaseAuthError for consistent error handling
       throw new FirebaseAuthError(
         `Network error during authentication: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -37,28 +53,33 @@ export class FirebaseClient {
 
     if (!response.ok) {
       throw new FirebaseAuthError(
-        `Authentication failed: ${response.status} ${response.statusText}`
+        `Firestore query failed: ${response.status} ${response.statusText}`
       );
     }
 
-    // Issue 3: Wrap response.json() in try-catch to handle non-JSON responses
-    let data: { userId: string; valid: boolean };
+    let results: any[];
     try {
-      data = await response.json() as { userId: string; valid: boolean };
+      results = await response.json() as any[];
     } catch (error) {
       throw new FirebaseAuthError(
         `Invalid response format: Expected JSON but received invalid data`
       );
     }
 
-    // Issue 2: Validate that data.userId exists and is non-empty
-    if (!data.userId || data.userId.trim() === '') {
-      throw new FirebaseAuthError(
-        `Invalid response: Missing or empty userId in response`
-      );
+    // Check if we got a result
+    if (!results || results.length === 0 || !results[0] || !results[0].document) {
+      throw new FirebaseAuthError('Invalid API key');
     }
 
-    return data.userId;
+    // Extract userId from Firestore document
+    const doc = results[0].document;
+    const userId = doc.fields?.userId?.stringValue;
+
+    if (!userId || userId.trim() === '') {
+      throw new FirebaseAuthError('Invalid response: Missing userId in API key document');
+    }
+
+    return userId;
   }
 
   async fetchDrugs(): Promise<Drug[]> {

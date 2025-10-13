@@ -5,7 +5,18 @@ describe('FirebaseClient', () => {
     it('should validate API key and return user ID', async () => {
       const mockFetch = jest.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ userId: 'user_123', valid: true }),
+        json: async () => ([
+          {
+            document: {
+              name: 'projects/test/databases/(default)/documents/api_keys/key123',
+              fields: {
+                key: { stringValue: 'test_key' },
+                userId: { stringValue: 'user_123' },
+                createdAt: { timestampValue: '2025-10-13T00:00:00Z' }
+              }
+            }
+          }
+        ])
       });
       global.fetch = mockFetch as any;
 
@@ -14,11 +25,10 @@ describe('FirebaseClient', () => {
 
       expect(userId).toBe('user_123');
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.example.com/validateApiKey',
+        'https://api.example.com:runQuery',
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey: 'test_key' }),
         })
       );
     });
@@ -64,40 +74,72 @@ describe('FirebaseClient', () => {
     it('should throw FirebaseAuthError if userId is missing from response', async () => {
       const mockFetch = jest.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ valid: true }),
+        json: async () => ([
+          {
+            document: {
+              name: 'projects/test/databases/(default)/documents/api_keys/key123',
+              fields: {
+                key: { stringValue: 'test_key' },
+                createdAt: { timestampValue: '2025-10-13T00:00:00Z' }
+              }
+            }
+          }
+        ])
       });
       global.fetch = mockFetch as any;
 
       const client = new FirebaseClient('https://api.example.com', 'test_key');
 
       await expect(client.validateApiKey()).rejects.toThrow(FirebaseAuthError);
-      await expect(client.validateApiKey()).rejects.toThrow('Missing or empty userId');
+      await expect(client.validateApiKey()).rejects.toThrow('Missing userId');
     });
 
     it('should throw FirebaseAuthError if userId is empty string', async () => {
       const mockFetch = jest.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ userId: '', valid: true }),
+        json: async () => ([
+          {
+            document: {
+              name: 'projects/test/databases/(default)/documents/api_keys/key123',
+              fields: {
+                key: { stringValue: 'test_key' },
+                userId: { stringValue: '' },
+                createdAt: { timestampValue: '2025-10-13T00:00:00Z' }
+              }
+            }
+          }
+        ])
       });
       global.fetch = mockFetch as any;
 
       const client = new FirebaseClient('https://api.example.com', 'test_key');
 
       await expect(client.validateApiKey()).rejects.toThrow(FirebaseAuthError);
-      await expect(client.validateApiKey()).rejects.toThrow('Missing or empty userId');
+      await expect(client.validateApiKey()).rejects.toThrow('Missing userId');
     });
 
     it('should throw FirebaseAuthError if userId is only whitespace', async () => {
       const mockFetch = jest.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ userId: '   ', valid: true }),
+        json: async () => ([
+          {
+            document: {
+              name: 'projects/test/databases/(default)/documents/api_keys/key123',
+              fields: {
+                key: { stringValue: 'test_key' },
+                userId: { stringValue: '   ' },
+                createdAt: { timestampValue: '2025-10-13T00:00:00Z' }
+              }
+            }
+          }
+        ])
       });
       global.fetch = mockFetch as any;
 
       const client = new FirebaseClient('https://api.example.com', 'test_key');
 
       await expect(client.validateApiKey()).rejects.toThrow(FirebaseAuthError);
-      await expect(client.validateApiKey()).rejects.toThrow('Missing or empty userId');
+      await expect(client.validateApiKey()).rejects.toThrow('Missing userId');
     });
   });
 
@@ -157,6 +199,58 @@ describe('FirebaseClient', () => {
           body: expect.stringContaining('"userId"'),
         })
       );
+    });
+  });
+
+  describe('validateApiKey with Firestore query', () => {
+    it('should query api_keys collection and return userId', async () => {
+      const mockFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ([
+          {
+            document: {
+              name: 'projects/test/databases/(default)/documents/api_keys/key123',
+              fields: {
+                key: { stringValue: 'test_key_123' },
+                userId: { stringValue: 'user_456' },
+                createdAt: { timestampValue: '2025-10-13T00:00:00Z' }
+              }
+            }
+          }
+        ])
+      });
+      global.fetch = mockFetch as any;
+
+      const client = new FirebaseClient(
+        'https://firestore.googleapis.com/v1/projects/test/databases/(default)/documents',
+        'test_key_123'
+      );
+      const userId = await client.validateApiKey();
+
+      expect(userId).toBe('user_456');
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(':runQuery'),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('api_keys')
+        })
+      );
+    });
+
+    it('should throw if no matching API key found', async () => {
+      const mockFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ([]) // Empty result
+      });
+      global.fetch = mockFetch as any;
+
+      const client = new FirebaseClient(
+        'https://firestore.googleapis.com/v1/projects/test/databases/(default)/documents',
+        'invalid_key'
+      );
+
+      await expect(client.validateApiKey()).rejects.toThrow(FirebaseAuthError);
+      await expect(client.validateApiKey()).rejects.toThrow('Invalid API key');
     });
   });
 });
