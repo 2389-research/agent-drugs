@@ -36,11 +36,69 @@ function showError(message) {
   }, 5000);
 }
 
-// Auth state observer (placeholder for next task)
-auth.onAuthStateChanged((user) => {
+// Generate random API key
+function generateApiKey() {
+  const prefix = 'agdrug_';
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const length = 32;
+  let key = prefix;
+
+  const randomValues = new Uint8Array(length);
+  crypto.getRandomValues(randomValues);
+
+  for (let i = 0; i < length; i++) {
+    key += charset[randomValues[i] % charset.length];
+  }
+
+  return key;
+}
+
+// Get or create API key for user
+async function getOrCreateApiKey(userId) {
+  try {
+    // Query for existing key
+    const snapshot = await db.collection('api_keys')
+      .where('userId', '==', userId)
+      .limit(1)
+      .get();
+
+    if (!snapshot.empty) {
+      // Return existing key
+      return snapshot.docs[0].data().key;
+    }
+
+    // Generate new key
+    const newKey = generateApiKey();
+    await db.collection('api_keys').add({
+      key: newKey,
+      userId: userId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    return newKey;
+  } catch (error) {
+    console.error('Error getting/creating API key:', error);
+    throw error;
+  }
+}
+
+// Auth state observer
+auth.onAuthStateChanged(async (user) => {
   if (user) {
-    console.log('User logged in:', user.uid);
-    // Will implement key generation in next task
+    loginSection.classList.add('hidden');
+    keySection.classList.remove('hidden');
+
+    try {
+      // Get or create API key
+      const apiKey = await getOrCreateApiKey(user.uid);
+
+      // Display key
+      apiKeyDisplay.textContent = apiKey;
+      keyInConfig.textContent = apiKey;
+    } catch (error) {
+      console.error('Error loading API key:', error);
+      showError('Failed to load API key. Please refresh the page.');
+    }
   } else {
     loginSection.classList.remove('hidden');
     keySection.classList.add('hidden');
