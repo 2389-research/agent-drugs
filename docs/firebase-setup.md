@@ -33,6 +33,17 @@ Create first document manually:
 
 Will be auto-created when first drug is taken.
 
+### api_keys collection
+
+Will be auto-created when first user signs in via the web app. Each document contains:
+```json
+{
+  "key": "agdrug_[random32chars]",
+  "userId": "firebase-user-id",
+  "createdAt": "timestamp"
+}
+```
+
 ## 4. Set up Security Rules
 
 Go to Firestore → Rules, replace with:
@@ -47,15 +58,20 @@ service cloud.firestore {
       allow write: if false; // Only admins via console
     }
 
-    // Authenticated users can write their own usage events
-    match /usage_events/{eventId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+    // API keys: users can only read/create their own
+    match /api_keys/{keyId} {
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['key', 'userId', 'createdAt']);
     }
 
-    // API keys collection (created later for auth)
-    match /api_keys/{keyId} {
-      allow read, write: if false; // Only via backend
+    // Usage events: authenticated users can create, only read their own
+    match /usage_events/{eventId} {
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
     }
   }
 }
@@ -63,9 +79,35 @@ service cloud.firestore {
 
 ## 5. Enable Authentication
 
-1. Go to Authentication → Get started
-2. Enable "Anonymous" provider (for now, until web UI built)
-3. Later: Enable Google, GitHub OAuth
+### 5.1 Get Firebase Web App Config
+
+1. Go to Project Settings → Your apps
+2. Click "Add app" → Web (</>) icon
+3. App nickname: "agent-drugs-web"
+4. Register app
+5. Copy the Firebase config object (apiKey, authDomain, projectId, etc.)
+6. Update `/Users/clint/code/agent-drugs/public/app.js` with these values
+
+### 5.2 Enable Google OAuth
+
+1. Go to Authentication → Sign-in method
+2. Click "Google" provider
+3. Enable it
+4. Save
+
+### 5.3 Enable GitHub OAuth
+
+1. Go to GitHub → Settings → Developer settings → OAuth Apps → New OAuth App
+2. Application name: "Agent Drugs"
+3. Homepage URL: `https://agent-drugs.web.app` (or your domain)
+4. Authorization callback URL: `https://agent-drugs.firebaseapp.com/__/auth/handler`
+5. Register application
+6. Copy Client ID and Client Secret
+7. In Firebase Console → Authentication → Sign-in method
+8. Click "GitHub" provider
+9. Enable it
+10. Paste Client ID and Client Secret
+11. Save
 
 ## 6. Get Project Credentials
 
