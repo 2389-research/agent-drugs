@@ -1,0 +1,132 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.container {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.tagline {
+  text-align: center;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.section {
+  margin-top: 2rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-google {
+  background: #4285f4;
+  color: white;
+}
+
+.btn-github {
+  background: #24292e;
+  color: white;
+}
+
+.btn-copy {
+  background: #10b981;
+  color: white;
+  width: auto;
+  margin-left: 10px;
+}
+
+.btn-secondary {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.key-container {
+  display: flex;
+  align-items: center;
+  margin: 1rem 0;
+}
+
+.api-key {
+  flex: 1;
+  padding: 12px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+pre {
+  background: #1f2937;
+  color: #e5e7eb;
+  padding: 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+pre code {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 0.85rem;
+}
+
+#key-in-config {
+  color: #fbbf24;
+  font-weight: bold;
+}
+
+.error {
+  color: #dc2626;
+  padding: 12px;
+  background: #fee2e2;
+  border-radius: 8px;
+  text-align: center;
+}
+
+h2, h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}

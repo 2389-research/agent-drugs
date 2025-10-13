@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Drugs - Get Your API Key</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Agent Drugs</h1>
+    <p class="tagline">Give your AI agent superpowers</p>
+
+    <!-- Login section (shown when not authenticated) -->
+    <div id="login-section" class="section">
+      <p>Sign in to get your API key</p>
+      <button id="google-signin" class="btn btn-google">Sign in with Google</button>
+      <button id="github-signin" class="btn btn-github">Sign in with GitHub</button>
+    </div>
+
+    <!-- API key section (shown when authenticated) -->
+    <div id="key-section" class="section hidden">
+      <h2>Your API Key</h2>
+      <div class="key-container">
+        <code id="api-key" class="api-key">Loading...</code>
+        <button id="copy-key" class="btn btn-copy">Copy</button>
+      </div>
+
+      <h3>Installation</h3>
+      <p>Add this to your Claude Code MCP config:</p>
+      <pre><code>{
+  "mcpServers": {
+    "agent-drugs": {
+      "command": "npx",
+      "args": ["@agent-drugs/mcp-server"],
+      "env": {
+        "AGENT_DRUGS_API_KEY": "<span id="key-in-config">your-key-here</span>",
+        "FIREBASE_PROJECT_ID": "agent-drugs"
+      }
+    }
+  }
+}</code></pre>
+
+      <button id="sign-out" class="btn btn-secondary">Sign Out</button>
+    </div>
+
+    <!-- Error section -->
+    <div id="error-section" class="section hidden">
+      <p class="error" id="error-message"></p>
+    </div>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
