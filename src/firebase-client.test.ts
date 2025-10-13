@@ -137,4 +137,26 @@ describe('FirebaseClient', () => {
       expect(drugs).toEqual(mockDrugs);
     });
   });
+
+  describe('recordUsageEvent', () => {
+    it('should write usage event to Firestore', async () => {
+      const mockFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ name: 'projects/test/databases/(default)/documents/usage_events/evt_123' }),
+      });
+      global.fetch = mockFetch as any;
+
+      const client = new FirebaseClient('https://firestore.googleapis.com/v1/projects/test/databases/(default)/documents', 'test_key');
+      await client.recordUsageEvent('user_123', 'focus', 60);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://firestore.googleapis.com/v1/projects/test/databases/(default)/documents/usage_events',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('"userId"'),
+        })
+      );
+    });
+  });
 });

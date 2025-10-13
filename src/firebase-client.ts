@@ -78,4 +78,35 @@ export class FirebaseClient {
       defaultDurationMinutes: parseInt(doc.fields.defaultDurationMinutes.integerValue, 10),
     }));
   }
+
+  async recordUsageEvent(
+    userId: string,
+    drugName: string,
+    durationMinutes: number
+  ): Promise<void> {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000);
+
+    const document = {
+      fields: {
+        userId: { stringValue: userId },
+        drugName: { stringValue: drugName },
+        timestamp: { timestampValue: now.toISOString() },
+        durationMinutes: { integerValue: durationMinutes.toString() },
+        expiresAt: { timestampValue: expiresAt.toISOString() },
+      },
+    };
+
+    const response = await fetch(`${this.apiUrl}/usage_events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(document),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to record usage event: ${response.status}`);
+    }
+  }
 }
