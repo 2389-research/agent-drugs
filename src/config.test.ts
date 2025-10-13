@@ -17,5 +17,6 @@ describe('loadConfig', () => {
     process.env.FIREBASE_PROJECT_ID = 'my-project';
     const config = loadConfig();
     expect(config.firebaseProjectId).toBe('my-project');
+    expect(config.firebaseApiUrl).toBe('https://firestore.googleapis.com/v1/projects/my-project/databases/(default)/documents');
   });
 });

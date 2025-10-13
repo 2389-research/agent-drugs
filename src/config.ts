@@ -6,7 +6,7 @@ export interface Config {
 
 export function loadConfig(): Config {
   const apiKey = process.env.AGENT_DRUGS_API_KEY;
-  if (!apiKey) {
+  if (!apiKey || apiKey.trim() === '') {
     throw new Error('AGENT_DRUGS_API_KEY not set');
   }
 
