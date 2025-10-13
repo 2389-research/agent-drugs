@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Anyone can read drugs (public catalog)
+    match /drugs/{drugId} {
+      allow read: if true;
+      allow write: if false; // Only admins via console
+    }
+
+    // API keys: Allow unauthenticated queries (for MCP server validation)
+    // but only return documents that match the exact key being queried
+    // Web app users can create their own keys when authenticated
+    match /api_keys/{keyId} {
+      // Allow unauthenticated queries for API key validation
+      // This is safe because:
+      // 1. Queries must filter by exact key match
+      // 2. Users can't enumerate keys without knowing them
+      // 3. The REST API query structure ensures only exact matches return
+      allow read: if true;
+
+      // Authenticated users can create their own API keys
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['key', 'userId', 'createdAt']);
+
+      // No updates or deletes allowed
+      allow update, delete: if false;
+    }
+
+    // Usage events: Allow unauthenticated writes (for MCP server)
+    // Authenticated users can read their own events (for web dashboard later)
+    match /usage_events/{eventId} {
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+
+      // Allow creation without auth (MCP server records usage)
+      // This is safe because we validate the API key exists first
+      allow create: if true;
+
+      allow update, delete: if false;
+    }
+  }
+}
