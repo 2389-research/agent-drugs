@@ -1,13 +1,11 @@
 // Firebase configuration
-// TODO: Replace these values with actual Firebase config from Firebase Console
-// Go to: Firebase Console → Project Settings → Your apps → Web app
 const firebaseConfig = {
-  apiKey: "YOUR_WEB_API_KEY_FROM_FIREBASE_CONSOLE",
+  apiKey: "AIzaSyBwf77Zt6V-aF6okTQxYM8h8ymFXiUOsD8",
   authDomain: "agent-drugs.firebaseapp.com",
   projectId: "agent-drugs",
   storageBucket: "agent-drugs.firebasestorage.app",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_WEB_APP_ID"
+  messagingSenderId: "456573964043",
+  appId: "1:456573964043:web:d5ab6852606e78b93c5c0e"
 };
 
 // Initialize Firebase
