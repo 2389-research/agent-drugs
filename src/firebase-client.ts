@@ -12,13 +12,22 @@ export class FirebaseClient {
   ) {}
 
   async validateApiKey(): Promise<string> {
-    const response = await fetch(`${this.apiUrl}/validateApiKey`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ apiKey: this.apiKey }),
-    });
+    // Issue 1: Wrap fetch in try-catch to handle network errors
+    let response: Response;
+    try {
+      response = await fetch(`${this.apiUrl}/validateApiKey`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey: this.apiKey }),
+      });
+    } catch (error) {
+      // Convert network errors to FirebaseAuthError for consistent error handling
+      throw new FirebaseAuthError(
+        `Network error during authentication: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
 
     if (!response.ok) {
       throw new FirebaseAuthError(
@@ -26,7 +35,23 @@ export class FirebaseClient {
       );
     }
 
-    const data = await response.json() as { userId: string; valid: boolean };
+    // Issue 3: Wrap response.json() in try-catch to handle non-JSON responses
+    let data: { userId: string; valid: boolean };
+    try {
+      data = await response.json() as { userId: string; valid: boolean };
+    } catch (error) {
+      throw new FirebaseAuthError(
+        `Invalid response format: Expected JSON but received invalid data`
+      );
+    }
+
+    // Issue 2: Validate that data.userId exists and is non-empty
+    if (!data.userId || data.userId.trim() === '') {
+      throw new FirebaseAuthError(
+        `Invalid response: Missing or empty userId in response`
+      );
+    }
+
     return data.userId;
   }
 }
