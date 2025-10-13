@@ -1,0 +1,30 @@
+{
+  "name": "agent-drugs",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "bin": {
+    "agent-drugs-mcp": "./dist/index.js"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "dev": "tsc --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.7.2",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "typescript": "^5.9.3"
+  }
+}
