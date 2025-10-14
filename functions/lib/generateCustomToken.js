@@ -1,23 +1,41 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateCustomToken = exports.generateCustomTokenHandler = void 0;
+exports.generateJWT = exports.generateJWTHandler = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-async function generateCustomTokenHandler(request) {
+const crypto = require("crypto");
+/**
+ * Generate a secure JWT for MCP authentication
+ * Stores agent credentials in Firestore agents collection
+ */
+async function generateJWTHandler(request) {
+    var _a;
     // Verify user is authenticated
     if (!request.auth || !request.auth.uid) {
-        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to generate token');
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to generate JWT');
     }
     const uid = request.auth.uid;
-    // Generate custom token using Admin SDK
-    const customToken = await admin.auth().createCustomToken(uid);
+    const agentName = ((_a = request.data) === null || _a === void 0 ? void 0 : _a.agentName) || 'Default Agent';
+    // Generate secure random JWT (256 bits = 32 bytes = 64 hex chars)
+    const jwt = 'agdrug_jwt_' + crypto.randomBytes(32).toString('hex');
+    // Store agent in Firestore
+    const db = admin.firestore();
+    const agentRef = await db.collection('agents').add({
+        userId: uid,
+        name: agentName,
+        jwt: jwt,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
     return {
-        token: customToken
+        jwt: jwt,
+        agentId: agentRef.id,
+        agentName: agentName,
     };
 }
-exports.generateCustomTokenHandler = generateCustomTokenHandler;
+exports.generateJWTHandler = generateJWTHandler;
 // Export the Cloud Function
-exports.generateCustomToken = functions.https.onCall(async (data, context) => {
-    return generateCustomTokenHandler(context);
+exports.generateJWT = functions.https.onCall(async (data, context) => {
+    return generateJWTHandler({ auth: context.auth, data });
 });
 //# sourceMappingURL=generateCustomToken.js.map

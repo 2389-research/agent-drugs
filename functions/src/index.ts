@@ -4,4 +4,4 @@ import * as admin from 'firebase-admin';
 admin.initializeApp();
 
 // Export functions
-export { generateCustomToken } from './generateCustomToken';
+export { generateJWT } from './generateCustomToken';

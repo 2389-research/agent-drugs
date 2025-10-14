@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1760378748783" clover="3.2.0">
+  <project timestamp="1760378748783" name="All files">
+    <metrics statements="22" coveredstatements="21" conditionals="10" coveredconditionals="8" methods="5" coveredmethods="5" elements="37" coveredelements="34" complexity="0" loc="22" ncloc="22" packages="1" files="1" classes="1"/>
+    <file name="firebase-client.ts" path="/Users/clint/code/agent-drugs/src/firebase-client.ts">
+      <metrics statements="22" coveredstatements="21" conditionals="10" coveredconditionals="8" methods="5" coveredmethods="5"/>
+      <line num="7" count="1" type="stmt"/>
+      <line num="9" count="11" type="stmt"/>
+      <line num="10" count="11" type="stmt"/>
+      <line num="14" count="1" type="stmt"/>
+      <line num="16" count="8" type="stmt"/>
+      <line num="17" count="8" type="stmt"/>
+      <line num="23" count="12" type="stmt"/>
+      <line num="24" count="12" type="stmt"/>
+      <line num="33" count="2" type="stmt"/>
+      <line num="38" count="10" type="cond" truecount="2" falsecount="0"/>
+      <line num="39" count="1" type="stmt"/>
+      <line num="46" count="9" type="stmt"/>
+      <line num="47" count="9" type="stmt"/>
+      <line num="49" count="2" type="stmt"/>
+      <line num="55" count="7" type="cond" truecount="4" falsecount="0"/>
+      <line num="56" count="6" type="stmt"/>
+      <line num="61" count="1" type="stmt"/>
+      <line num="65" count="1" type="stmt"/>
+      <line num="69" count="1" type="cond" truecount="1" falsecount="1"/>
+      <line num="70" count="0" type="stmt"/>
+      <line num="73" count="1" type="stmt"/>
+      <line num="75" count="2" type="stmt"/>
+    </file>
+  </project>
+</coverage>
