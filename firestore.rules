@@ -7,36 +7,47 @@ service cloud.firestore {
       allow write: if false; // Only admins via console
     }
 
-    // API keys: Allow unauthenticated queries (for MCP server validation)
-    // but only return documents that match the exact key being queried
-    // Web app users can create their own keys when authenticated
-    match /api_keys/{keyId} {
-      // Allow unauthenticated queries for API key validation
-      // This is safe because:
-      // 1. Queries must filter by exact key match
-      // 2. Users can't enumerate keys without knowing them
-      // 3. The REST API query structure ensures only exact matches return
-      allow read: if true;
-
-      // Authenticated users can create their own API keys
-      allow create: if request.auth != null &&
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.keys().hasAll(['key', 'userId', 'createdAt']);
-
-      // No updates or deletes allowed
-      allow update, delete: if false;
-    }
-
-    // Usage events: Allow unauthenticated writes (for MCP server)
-    // Authenticated users can read their own events (for web dashboard later)
-    match /usage_events/{eventId} {
+    // Agents collection: JWT-based authentication for MCP
+    // Users can manage their own agents
+    match /agents/{agentId} {
+      // Users can read their own agents
       allow read: if request.auth != null &&
         resource.data.userId == request.auth.uid;
 
-      // Allow creation without auth (MCP server records usage)
-      // This is safe because we validate the API key exists first
+      // Users can create agents (via Cloud Function generateJWT)
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['userId', 'name', 'jwt', 'createdAt', 'lastUsedAt']);
+
+      // Users can update lastUsedAt timestamp
+      allow update: if request.auth != null &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastUsedAt']);
+
+      // Users can delete their own agents
+      allow delete: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    // Usage events: MCP server writes, users read their own
+    match /usage_events/{eventId} {
+      // Users can read their own events
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+
+      // Allow MCP server to create events (validates JWT first)
+      // MCP server uses service account, not user auth
       allow create: if true;
 
+      // No updates or deletes
+      allow update, delete: if false;
+    }
+
+    // Legacy api_keys collection: Deprecated, will be removed
+    // Kept for backward compatibility during migration
+    match /api_keys/{keyId} {
+      allow read: if true;
+      allow create: if false; // No new API keys
       allow update, delete: if false;
     }
   }
