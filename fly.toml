@@ -1,0 +1,49 @@
+# fly.toml - Fly.io configuration for agent-drugs MCP server
+
+app = "agent-drugs-mcp"
+primary_region = "sjc"  # San Jose - choose closest to your users
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  FIREBASE_PROJECT_ID = "agent-drugs"
+
+[secrets]
+  # Set these with: fly secrets set KEY=value
+  # AGENT_DRUGS_JWT="agdrug_jwt_..."  # Not actually used, clients provide their own
+  # GOOGLE_APPLICATION_CREDENTIALS will be set via fly secrets
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "1s"
+    restart_limit = 0
+
+[checks]
+  [checks.health]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+    timeout = "5s"

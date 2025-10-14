@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.firebase
+.git
+.github
+*.md
+*.log
+.env
+.env.local
+service-account.json
+docs
+functions
+public
