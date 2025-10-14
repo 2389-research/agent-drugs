@@ -5,3 +5,4 @@ admin.initializeApp();
 
 // Export functions
 export { generateJWT } from './generateCustomToken';
+export { oauthMetadata, oauthAuthorize } from './oauthMetadata';
