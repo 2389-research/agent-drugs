@@ -13,8 +13,7 @@ export async function takeDrugTool(
   state: StateManager
 ): Promise<ToolResult> {
   try {
-    // Validate user
-    const userId = await client.validateApiKey();
+    // JWT is validated at server startup, no need to validate again
 
     // Find the drug
     const drugs = await client.fetchDrugs();
@@ -31,8 +30,8 @@ export async function takeDrugTool(
     const duration = args.duration ?? drug.defaultDurationMinutes;
     const expiresAt = new Date(Date.now() + duration * 60 * 1000);
 
-    // Record to Firebase
-    await client.recordUsageEvent(userId, drug.name, duration);
+    // Record to Firebase (userId is handled internally)
+    await client.recordUsageEvent(drug.name, duration);
 
     // Update local state
     state.addDrug(drug.name, drug.prompt, expiresAt);

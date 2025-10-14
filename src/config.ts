@@ -1,21 +1,26 @@
 export interface Config {
-  apiKey: string;
+  jwt: string;
   firebaseProjectId: string;
-  firebaseApiUrl: string;
+  serviceAccountPath?: string;
 }
 
 export function loadConfig(): Config {
-  const apiKey = process.env.AGENT_DRUGS_API_KEY;
-  if (!apiKey || apiKey.trim() === '') {
-    throw new Error('AGENT_DRUGS_API_KEY not set');
+  // JWT token is required for authentication
+  const jwt = process.env.AGENT_DRUGS_JWT;
+  if (!jwt || jwt.trim() === '') {
+    throw new Error('AGENT_DRUGS_JWT environment variable must be set');
   }
 
-  const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || 'agent-drugs-prod';
-  const firebaseApiUrl = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents`;
+  const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || 'agent-drugs';
+
+  // Service account path for firebase-admin SDK
+  // In production (fly.io), this is provided by the container
+  // In development, use GOOGLE_APPLICATION_CREDENTIALS
+  const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
   return {
-    apiKey,
+    jwt,
     firebaseProjectId,
-    firebaseApiUrl,
+    serviceAccountPath,
   };
 }

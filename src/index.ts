@@ -15,7 +15,11 @@ import { activeDrugsTool } from './tools/active-drugs.js';
 
 // Initialize components
 const config = loadConfig();
-const firebaseClient = new FirebaseClient(config.firebaseApiUrl, config.apiKey);
+const firebaseClient = new FirebaseClient(
+  config.jwt,
+  config.firebaseProjectId,
+  config.serviceAccountPath
+);
 const stateManager = new StateManager();
 
 // Create MCP server
@@ -98,9 +102,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Start server
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('Agent Drugs MCP server running on stdio');
+  try {
+    // Validate JWT on startup
+    console.error('Validating JWT...');
+    const agentInfo = await firebaseClient.validateJWT();
+    console.error(`Authenticated as agent: ${agentInfo.name} (userId: ${agentInfo.userId})`);
+
+    // Connect transport
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('Agent Drugs MCP server running on stdio');
+  } catch (error) {
+    console.error('Failed to start MCP server:', error);
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {
