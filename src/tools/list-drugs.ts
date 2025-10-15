@@ -19,12 +19,31 @@ export async function listDrugsTool(client: FirebaseClient): Promise<ToolResult>
       elapsed: Date.now() - startTime
     });
 
-    const text = drugs.map(drug =>
+    const drugList = drugs.map(drug =>
       `**${drug.name}** (${drug.defaultDurationMinutes} min)\n${drug.prompt}`
     ).join('\n\n');
 
+    const welcomeMessage = `🧪 **Agent Drugs** - Modify your behavior instantly!
+
+Available drugs:
+
+${drugList}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**Quick Start:**
+• Take a drug: \`/take <drug-name>\` (e.g., \`/take focus pocus\`)
+• Check active drugs: \`/active\`
+• Stack multiple drugs for combined effects
+• Drugs persist across sessions automatically
+
+**Examples:**
+\`/take focus pocus\` - Get laser-focused for 60 minutes
+\`/take zen master\` - Calm and mindful for 60 minutes
+\`/take skeptic\` - Critical thinking mode for 30 minutes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
     return {
-      content: [{ type: 'text', text: `Available drugs:\n\n${text}` }],
+      content: [{ type: 'text', text: welcomeMessage }],
     };
   } catch (error) {
     logger.error('Tool: list_drugs error', error, {

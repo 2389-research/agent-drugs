@@ -48,43 +48,79 @@
         </p>
       </div>
 
-      <!-- Quick Start Grid -->
-      <div class="grid md:grid-cols-2 gap-8 p-8">
-        <!-- Installation -->
-        <div>
-          <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
-            <span>🚀</span>
-            <span>Installation</span>
-          </h3>
-          <div class="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-            <div>claude plugin add 2389-research/claude-plugins</div>
-            <div>claude plugin install agent-drugs</div>
-          </div>
-          <p class="mt-3 text-sm text-green-600 font-medium">
-            ✓ First command adds the marketplace<br/>
-            ✓ Second installs agent-drugs<br/>
-            ✓ OAuth on first use
-          </p>
-        </div>
+      <!-- Quick Start Guide -->
+      <div class="p-8 bg-gradient-to-br from-blue-50 to-purple-50 border-b border-gray-200">
+        <h3 class="text-2xl font-bold mb-6 text-center flex items-center justify-center gap-2">
+          <span>🚀</span>
+          <span>Quick Start Guide</span>
+        </h3>
 
-        <!-- Popular Drugs -->
-        <div>
-          <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
-            <span>🧬</span>
-            <span>Popular Drugs</span>
-          </h3>
-          <div class="flex flex-wrap gap-2">
-            <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">🎯 focus</span>
-            <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">💡 creative</span>
-            <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">📝 concise</span>
-            <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">🐛 debug</span>
-            <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">⚡ speed</span>
-            <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">📚 verbose</span>
+        <div class="max-w-3xl mx-auto space-y-4">
+          <!-- Step 1 -->
+          <div class="flex gap-4 items-start bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+            <div class="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold">1</div>
+            <div class="flex-1">
+              <h4 class="font-bold text-gray-900 mb-1">Install the plugin</h4>
+              <div class="bg-gray-900 text-gray-100 rounded p-2 font-mono text-xs overflow-x-auto mb-2">
+                <div>claude plugin add 2389-research/claude-plugins</div>
+                <div>claude plugin install agent-drugs</div>
+              </div>
+              <p class="text-sm text-gray-600">Run these commands in your terminal to install the plugin.</p>
+            </div>
           </div>
-          <p class="mt-4 text-sm text-gray-600">
-            From <a href="https://github.com/2389-research/claude-plugins" target="_blank" class="text-primary hover:underline font-medium">2389-research/claude-plugins</a> marketplace
-          </p>
+
+          <!-- Step 2 -->
+          <div class="flex gap-4 items-start bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+            <div class="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold">2</div>
+            <div class="flex-1">
+              <h4 class="font-bold text-gray-900 mb-1">Trigger OAuth authorization</h4>
+              <div class="bg-gray-900 text-gray-100 rounded p-2 font-mono text-xs overflow-x-auto mb-2">
+                <div>/drugs</div>
+              </div>
+              <p class="text-sm text-gray-600">In Claude Code, run <code class="px-1.5 py-0.5 bg-gray-100 rounded text-primary font-mono text-xs">/drugs</code> (or any agent-drugs command) to trigger the OAuth flow.</p>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="flex gap-4 items-start bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+            <div class="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold">3</div>
+            <div class="flex-1">
+              <h4 class="font-bold text-gray-900 mb-1">Authorize in your browser</h4>
+              <p class="text-sm text-gray-600">Claude Code will open your browser. Sign in with Google or GitHub and authorize your agent.</p>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="flex gap-4 items-start bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+            <div class="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold">4</div>
+            <div class="flex-1">
+              <h4 class="font-bold text-gray-900 mb-1">Start taking drugs!</h4>
+              <div class="bg-gray-900 text-gray-100 rounded p-2 font-mono text-xs overflow-x-auto mb-2">
+                <div>/take focus</div>
+              </div>
+              <p class="text-sm text-gray-600">You're all set! Take any drug to modify Claude's behavior instantly.</p>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <!-- Popular Drugs Section -->
+      <div class="p-8 border-b border-gray-200">
+        <h3 class="text-2xl font-bold mb-4 text-center flex items-center justify-center gap-2">
+          <span>🧬</span>
+          <span>Available Drugs</span>
+        </h3>
+        <div class="flex flex-wrap gap-2 justify-center max-w-2xl mx-auto">
+          <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">🎯 focus pocus</span>
+          <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">🧘 zen master</span>
+          <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">🎓 coach</span>
+          <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">🤔 skeptic</span>
+          <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">🧭 explorer</span>
+          <span class="px-4 py-2 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-sm font-medium transition-all cursor-default border border-gray-300 hover:border-primary">✨ minimalist</span>
+        </div>
+        <p class="mt-4 text-center text-sm text-gray-600">
+          From <a href="https://github.com/2389-research/claude-plugins" target="_blank" class="text-primary hover:underline font-medium">2389-research/claude-plugins</a> marketplace
+        </p>
       </div>
 
       <!-- CTA Section -->

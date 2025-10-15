@@ -54,8 +54,16 @@ export async function takeDrugTool(
         drugName: args.name,
         duration: Date.now() - startTime
       });
+      const availableDrugs = drugs.map(d => d.name).join(', ');
       return {
-        content: [{ type: 'text', text: `Drug '${args.name}' not found. Use list_drugs() to see available options.` }],
+        content: [{
+          type: 'text',
+          text: `❌ Drug '${args.name}' not found.
+
+**Available drugs:** ${availableDrugs}
+
+💡 Run \`/drugs\` to see full descriptions and durations for each drug.`
+        }],
         isError: true,
       };
     }

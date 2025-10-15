@@ -48,7 +48,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: 'list_drugs',
-        description: 'List all available digital drugs that can modify agent behavior',
+        description: 'Browse all available digital drugs. Start here if this is your first time! Shows drug names, durations, and behavioral effects. Use /drugs as a shortcut.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -56,13 +56,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'take_drug',
-        description: 'Take a digital drug to modify your behavior. Each drug has a fixed duration.',
+        description: 'Take a digital drug to instantly modify Claude\'s behavior (e.g., focus, creative, skeptic). Effects activate immediately and persist across sessions. Use /take <drug-name> as a shortcut.',
         inputSchema: {
           type: 'object',
           properties: {
             name: {
               type: 'string',
-              description: 'Name of the drug to take',
+              description: 'Name of the drug to take (e.g., "focus pocus", "zen master", "skeptic")',
             },
           },
           required: ['name'],
@@ -70,7 +70,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'active_drugs',
-        description: 'List currently active drugs and their remaining duration',
+        description: 'Check which drugs are currently active and how much time remains. Use /active as a shortcut.',
         inputSchema: {
           type: 'object',
           properties: {},
