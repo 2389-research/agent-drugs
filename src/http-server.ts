@@ -358,17 +358,13 @@ app.all('/mcp', async (req, res) => {
             },
             {
               name: 'take_drug',
-              description: 'Take a digital drug to modify your behavior for a specified duration',
+              description: 'Take a digital drug to modify your behavior. Each drug has a fixed duration.',
               inputSchema: {
                 type: 'object',
                 properties: {
                   name: {
                     type: 'string',
                     description: 'Name of the drug to take',
-                  },
-                  duration: {
-                    type: 'number',
-                    description: 'Duration in minutes (optional, uses default if not provided)',
                   },
                 },
                 required: ['name'],

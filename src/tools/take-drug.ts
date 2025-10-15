@@ -5,7 +5,6 @@ import { logger } from '../logger.js';
 
 export interface TakeDrugArgs {
   name: string;
-  duration?: number;
 }
 
 /**
@@ -41,7 +40,7 @@ export async function takeDrugTool(
   state: StateManager
 ): Promise<ToolResult> {
   const startTime = Date.now();
-  logger.info('Tool: take_drug invoked', { drugName: args.name, requestedDuration: args.duration });
+  logger.info('Tool: take_drug invoked', { drugName: args.name });
 
   try {
     // JWT is validated at server startup, no need to validate again
@@ -61,25 +60,8 @@ export async function takeDrugTool(
       };
     }
 
-    // Use provided duration or default
-    const duration = args.duration ?? drug.defaultDurationMinutes;
-
-    // Validate duration (1 minute to 24 hours)
-    if (duration < 1 || duration > 1440) {
-      logger.warn('Tool: take_drug failed - invalid duration', {
-        drugName: args.name,
-        duration: duration,
-        elapsed: Date.now() - startTime
-      });
-      return {
-        content: [{
-          type: 'text',
-          text: `Invalid duration: ${duration} minutes. Duration must be between 1 and 1440 minutes (24 hours).`
-        }],
-        isError: true,
-      };
-    }
-
+    // Use drug's fixed duration
+    const duration = drug.defaultDurationMinutes;
     const expiresAt = new Date(Date.now() + duration * 60 * 1000);
 
     // Record to Firebase (userId is handled internally)
@@ -125,7 +107,6 @@ The modification will automatically persist to future sessions via the SessionSt
   } catch (error) {
     logger.error('Tool: take_drug error', error, {
       drugName: args.name,
-      requestedDuration: args.duration,
       elapsed: Date.now() - startTime
     });
     return {
