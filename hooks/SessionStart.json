@@ -2,11 +2,15 @@
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.js",
-        "name": "agent-drugs-context-injection",
-        "description": "Automatically inject active drug context into new sessions",
-        "enabled": true
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.js",
+            "name": "agent-drugs-context-injection",
+            "description": "Automatically inject active drug context into new sessions"
+          }
+        ]
       }
     ]
   }
