@@ -333,6 +333,12 @@ app.all('/mcp', async (req, res) => {
     });
 
     let sessionData = activeSessions.get(sessionId || '');
+
+    // Update firebaseClient in existing session with new validated token
+    if (sessionData) {
+      sessionData.firebaseClient = firebaseClient;
+    }
+
     if (!sessionData) {
       // New session - create MCP server and state manager
       // Initialize state manager with agent info
