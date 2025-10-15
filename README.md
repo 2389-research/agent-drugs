@@ -1,14 +1,25 @@
-# Agent Drugs MCP Server
+# Agent Drugs
 
-MCP server for Claude Code agents to take "digital drugs" that modify their behavior.
+Claude Code plugin with MCP server for digital drugs that modify AI behavior through prompt injection.
 
-## Quick Start
+## Installation
 
-Agent Drugs uses **OAuth 2.1** for secure authentication. Claude Code automatically handles the OAuth flow.
+### Plugin Installation (Recommended)
 
-### Configuration
+Install as a Claude Code plugin to get MCP server, hooks, and slash commands:
 
-Add this to your Claude Code MCP settings:
+```bash
+/plugin add https://github.com/2389-research/agent-drugs
+```
+
+This installs:
+- **MCP Server** - OAuth-authenticated connection to https://agent-drugs-mcp.fly.dev
+- **Slash Commands** - `/drugs` and `/take <drug>` commands
+- **SessionStart Hook** - Automatically activates drugs in new sessions
+
+### Manual MCP Configuration
+
+Alternatively, manually add to your Claude Code MCP settings:
 
 ```json
 {
@@ -23,15 +34,38 @@ Add this to your Claude Code MCP settings:
 }
 ```
 
-### First Connection
+## First Use
 
-When you first connect:
+After installation, the first time you use a drug tool:
 1. Claude Code discovers the OAuth endpoints
 2. Opens your browser to https://agent-drugs.web.app/oauth-authorize.html
 3. You sign in with Google or GitHub
 4. You authorize the agent's access
 5. Redirects back to Claude Code
 6. Connection established!
+
+## Usage
+
+Once installed, you have several ways to interact with drugs:
+
+**Slash Commands:**
+```bash
+/drugs              # List all available drugs
+/take focus         # Take the focus drug
+/take creative 120  # Take creative drug for 120 minutes
+```
+
+**Natural Language:**
+```
+"List all available drugs"
+"Take the focus drug"
+"What drugs are active?"
+```
+
+**MCP Tools:**
+- `list_drugs` - Browse drug catalog
+- `take_drug` - Activate a drug
+- `active_drugs` - Check active drugs and remaining time
 
 ### Managing Access
 
@@ -40,18 +74,19 @@ Visit https://agent-drugs.web.app to:
 - See token expiration dates (90 days)
 - Revoke access for specific agents
 
-## Architecture
+## How It Works
 
+**Immediate Effect:** Drugs activate instantly in your current session via prompt injection in the tool response.
+
+**Persistent Effect:** Active drugs are saved to Firestore and automatically reactivated in new sessions via the SessionStart hook.
+
+**Architecture:**
 - **Web UI** (Firebase Hosting): https://agent-drugs.web.app
 - **OAuth Endpoints** (Cloud Functions): OAuth 2.1 with PKCE
 - **MCP Server** (Fly.io): Streamable HTTP transport (MCP 2025-03-26), validates bearer tokens
 - **Database** (Firestore): Stores agents, drugs, usage events
 
-## Available Tools
-
-- `list_drugs` - View all available digital drugs
-- `take_drug` - Take a drug to modify AI behavior
-- `active_drugs` - Check currently active drugs and their remaining duration
+See [CLAUDE.md](CLAUDE.md) for detailed plugin documentation.
 
 ## Development
 
