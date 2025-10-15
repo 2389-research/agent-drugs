@@ -8,8 +8,20 @@ Claude Code plugin with MCP server for digital drugs that modify AI behavior thr
 
 Install as a Claude Code plugin to get MCP server, hooks, and slash commands:
 
+1. **Add the 2389 marketplace** (first time only):
 ```bash
-/plugin add https://github.com/2389-research/agent-drugs
+/plugin marketplace add 2389-research/claude-plugins
+```
+
+2. **Browse and install interactively**:
+```bash
+/plugin
+```
+Then select "Browse Plugins" and install "agent-drugs"
+
+**Or install directly**:
+```bash
+/plugin install agent-drugs@2389-research
 ```
 
 This installs:
