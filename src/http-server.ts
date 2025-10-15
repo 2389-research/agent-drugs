@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
 import express from 'express';
 import cors from 'cors';
 
@@ -293,77 +287,83 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-// Store active MCP servers by session
-const activeSessions = new Map<string, {
-  server: Server;
-  stateManager: StateManager;
-  transport: StreamableHTTPServerTransport;
-  firebaseClient: FirebaseClient;
-}>();
-
-// MCP endpoint (supports both GET, POST, and DELETE per Streamable HTTP spec)
-app.all('/mcp', async (req, res) => {
+// MCP endpoint - stateless JSON-RPC over HTTP
+app.post('/mcp', async (req, res) => {
   const startTime = Date.now();
-  const sessionId = req.headers['mcp-session-id'] as string;
 
-  logger.request(req.method, '/mcp', { sessionId });
-
-  // Check if this is an initialize request (allowed without auth)
-  const isInitialize = req.body?.method === 'initialize';
-
-  // Extract bearer token from Authorization header
-  const authHeader = req.headers.authorization;
-  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
-
-  // For non-initialize requests, require authentication
-  if (!isInitialize && !bearerToken) {
-    logger.warn('MCP request missing authorization', { method: req.method, sessionId });
-    res.status(401).json({
-      jsonrpc: '2.0',
-      error: {
-        code: -32001,
-        message: 'Authentication required',
-        data: {
-          authType: 'oauth',
-          oauthMetadataUrl: 'https://us-central1-agent-drugs.cloudfunctions.net/oauthMetadata'
-        }
-      },
-      id: req.body?.id
-    });
-    return;
-  }
-
-  // For initialize without token, return OAuth requirement
-  if (isInitialize && !bearerToken) {
-    logger.info('Unauthenticated initialize request - returning OAuth requirement');
-    res.status(200).json({
-      jsonrpc: '2.0',
-      result: {
-        protocolVersion: '2024-11-05',
-        capabilities: {
-          tools: {}
-        },
-        serverInfo: {
-          name: 'agent-drugs',
-          version: '0.1.0'
-        }
-      },
-      id: req.body?.id
-    });
-    return;
-  }
+  logger.request(req.method, '/mcp', {
+    method: req.body?.method,
+    id: req.body?.id
+  });
 
   try {
-    // At this point, bearerToken is guaranteed to be defined (we returned early if not)
-    // TypeScript doesn't know this, so we need to assert it
-    if (!bearerToken) {
-      throw new Error('Bearer token missing after validation checks');
+    const jsonrpcRequest = req.body;
+
+    // Validate JSON-RPC request
+    if (!jsonrpcRequest || jsonrpcRequest.jsonrpc !== '2.0') {
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32600,
+          message: 'Invalid Request'
+        },
+        id: jsonrpcRequest?.id || null
+      });
+      return;
     }
 
-    // Initialize components for this connection
-    const config = loadConfig(false); // Don't require bearer token in env
+    // Handle initialize method
+    if (jsonrpcRequest.method === 'initialize') {
+      logger.info('Initialize request');
+      res.status(200).json({
+        jsonrpc: '2.0',
+        result: {
+          protocolVersion: '2024-11-05',
+          capabilities: {
+            tools: {}
+          },
+          serverInfo: {
+            name: 'agent-drugs',
+            version: '0.1.0'
+          }
+        },
+        id: jsonrpcRequest.id
+      });
+      return;
+    }
+
+    // Handle notifications (no response needed per JSON-RPC 2.0 spec)
+    if (jsonrpcRequest.method?.startsWith('notifications/')) {
+      logger.info('Notification received', { method: jsonrpcRequest.method });
+      res.status(200).end(); // Acknowledge but don't send response body
+      return;
+    }
+
+    // For all other methods, require authentication
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+
+    if (!bearerToken) {
+      logger.warn('MCP request missing authorization', { method: jsonrpcRequest.method });
+      res.status(401).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32001,
+          message: 'Authentication required',
+          data: {
+            authType: 'oauth',
+            oauthMetadataUrl: 'https://us-central1-agent-drugs.cloudfunctions.net/oauthMetadata'
+          }
+        },
+        id: jsonrpcRequest.id
+      });
+      return;
+    }
+
+    // Initialize components for this request
+    const config = loadConfig(false);
     const firebaseClient = new FirebaseClient(
-      bearerToken, // Use token from Authorization header
+      bearerToken,
       config.firebaseProjectId,
       config.serviceAccountPath
     );
@@ -373,133 +373,122 @@ app.all('/mcp', async (req, res) => {
     logger.auth('Agent authenticated', {
       agentName: agentInfo.name,
       agentId: agentInfo.agentId,
-      userId: agentInfo.userId,
-      sessionId
+      userId: agentInfo.userId
     });
 
-    let sessionData = activeSessions.get(sessionId || '');
+    // Create state manager for this request
+    const stateManager = new StateManager(agentInfo.agentId, agentInfo.userId);
 
-    // Update firebaseClient in existing session with new validated token
-    if (sessionData) {
-      sessionData.firebaseClient = firebaseClient;
-    }
-
-    if (!sessionData) {
-      // New session - create MCP server and state manager
-      // Initialize state manager with agent info
-      const stateManager = new StateManager(agentInfo.agentId, agentInfo.userId);
-
-      // Create MCP server instance for this session
-      const server = new Server(
+    // Handle tools/list method
+    if (jsonrpcRequest.method === 'tools/list') {
+      logger.info('Listing tools');
+      const tools = [
         {
-          name: 'agent-drugs',
-          version: '0.1.0',
+          name: 'list_drugs',
+          description: 'List all available digital drugs that can modify agent behavior',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
         },
         {
-          capabilities: {
-            tools: {},
-          },
-        }
-      );
-
-      // Register tool handlers
-      server.setRequestHandler(ListToolsRequestSchema, async () => {
-        return {
-          tools: [
-            {
-              name: 'list_drugs',
-              description: 'List all available digital drugs that can modify agent behavior',
-              inputSchema: {
-                type: 'object',
-                properties: {},
+          name: 'take_drug',
+          description: 'Take a digital drug to modify your behavior. Each drug has a fixed duration.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+                description: 'Name of the drug to take',
               },
             },
-            {
-              name: 'take_drug',
-              description: 'Take a digital drug to modify your behavior. Each drug has a fixed duration.',
-              inputSchema: {
-                type: 'object',
-                properties: {
-                  name: {
-                    type: 'string',
-                    description: 'Name of the drug to take',
-                  },
-                },
-                required: ['name'],
-              },
+            required: ['name'],
+          },
+        },
+        {
+          name: 'active_drugs',
+          description: 'List currently active drugs and their remaining duration',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+        },
+      ];
+
+      res.status(200).json({
+        jsonrpc: '2.0',
+        result: { tools },
+        id: jsonrpcRequest.id
+      });
+      return;
+    }
+
+    // Handle tools/call method
+    if (jsonrpcRequest.method === 'tools/call') {
+      const toolName = jsonrpcRequest.params?.name;
+      const toolArgs = jsonrpcRequest.params?.arguments || {};
+
+      logger.info('Tool call', { tool: toolName, args: toolArgs });
+
+      let result;
+      switch (toolName) {
+        case 'list_drugs':
+          result = await listDrugsTool(firebaseClient);
+          break;
+
+        case 'take_drug':
+          result = await takeDrugTool(toolArgs, firebaseClient, stateManager);
+          break;
+
+        case 'active_drugs':
+          result = await activeDrugsTool(stateManager);
+          break;
+
+        default:
+          res.status(400).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32601,
+              message: `Unknown tool: ${toolName}`
             },
-            {
-              name: 'active_drugs',
-              description: 'List currently active drugs and their remaining duration',
-              inputSchema: {
-                type: 'object',
-                properties: {},
-                },
-              },
-            ],
-          };
-        });
-
-        server.setRequestHandler(CallToolRequestSchema, async (request) => {
-          switch (request.params.name) {
-            case 'list_drugs':
-              return await listDrugsTool(firebaseClient) as any;
-
-            case 'take_drug': {
-              const args = request.params.arguments as { name: string };
-              return await takeDrugTool(args, firebaseClient, stateManager) as any;
-            }
-
-            case 'active_drugs':
-              return await activeDrugsTool(stateManager) as any;
-
-            default:
-              throw new Error(`Unknown tool: ${request.params.name}`);
-          }
-        });
-
-        // Create Streamable HTTP transport with session management
-        const transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: () => `session_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-          onsessioninitialized: (newSessionId) => {
-            logger.session('initialized', newSessionId, {
-              agentId: agentInfo.agentId,
-              agentName: agentInfo.name
-            });
-            // Store session with the generated ID
-            const newSessionData = { server, stateManager, transport, firebaseClient };
-            activeSessions.set(newSessionId, newSessionData);
-          },
-          onsessionclosed: (closedSessionId) => {
-            logger.session('closed', closedSessionId);
-            activeSessions.delete(closedSessionId);
-          },
-        });
-
-        // Connect server to transport
-        await server.connect(transport);
-        logger.info('MCP session created', {
-          agentId: agentInfo.agentId,
-          duration: Date.now() - startTime
-        });
-
-        // Handle this first request which will trigger onsessioninitialized callback
-        // After this call, the session will be stored in activeSessions
-        await transport.handleRequest(req, res, req.body);
-        return; // Exit early - first request handled
+            id: jsonrpcRequest.id
+          });
+          return;
       }
 
-      // Existing session - use the stored transport to handle request
-      await sessionData.transport.handleRequest(req, res, req.body);
+      res.status(200).json({
+        jsonrpc: '2.0',
+        result,
+        id: jsonrpcRequest.id
+      });
+      logger.response('POST', '/mcp', 200, Date.now() - startTime);
+      return;
+    }
+
+    // Unknown method
+    res.status(400).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32601,
+        message: `Method not found: ${jsonrpcRequest.method}`
+      },
+      id: jsonrpcRequest.id
+    });
 
   } catch (error) {
-    logger.error('MCP connection error', error, {
-      method: req.method,
-      sessionId,
+    logger.error('MCP request error', error, {
       duration: Date.now() - startTime
     });
+
     if (!res.headersSent) {
-      res.status(401).json({ error: 'Authentication failed' });
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32603,
+          message: error instanceof Error ? error.message : 'Internal error'
+        },
+        id: req.body?.id || null
+      });
     }
   }
 });
@@ -532,19 +521,8 @@ async function main() {
     });
 
     // Graceful shutdown
-    const shutdown = async () => {
+    const shutdown = () => {
       logger.info('Shutting down gracefully...');
-
-      // Close all active sessions
-      for (const [sessionId, session] of activeSessions.entries()) {
-        try {
-          await session.server.close();
-          logger.session('closed', sessionId, { reason: 'shutdown' });
-        } catch (error) {
-          logger.error('Error closing session during shutdown', error, { sessionId });
-        }
-      }
-      activeSessions.clear();
 
       // Close HTTP server
       server.close(() => {

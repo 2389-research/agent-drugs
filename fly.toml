@@ -24,6 +24,12 @@ primary_region = 'sjc'
   min_machines_running = 1
   processes = ['app']
 
+  # Increase timeouts for long-lived MCP connections
+  [http_service.http_options]
+    idle_timeout = 60
+    read_timeout = 60
+    write_timeout = 60
+
   [[http_service.checks]]
     interval = '30s'
     timeout = '5s'
