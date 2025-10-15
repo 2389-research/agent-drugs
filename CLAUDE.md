@@ -10,8 +10,11 @@ This plugin allows you to take "digital drugs" that modify Claude's behavior thr
 - `active_drugs` - Check what drugs are currently active and their remaining time
 
 ### Available Commands
-- `/drugs` - Shortcut to list available drugs
-- `/take <drug> [duration]` - Shortcut to take a drug
+- `/drugs` - Shortcut to list available drugs (appears as `/drugs (plugin:agent-drugs)` in `/help`)
+- `/take <drug>` - Shortcut to take a drug
+- `/active` - Check currently active drugs
+
+**First-time use**: Commands will automatically attempt to trigger OAuth authentication if you haven't authenticated yet. Follow the prompts in your browser to sign in with Google or GitHub.
 
 ## How It Works
 
@@ -147,6 +150,16 @@ See `docs/LOCAL_TESTING.md` for comprehensive local testing guide including:
 - Testing immediate vs persistent effects
 
 ## Troubleshooting
+
+### First-time setup: "MCP tools aren't available"
+If you just installed the plugin and commands fail with this error:
+1. The plugin is installed correctly, but OAuth authentication hasn't happened yet
+2. Try running any command again (`/drugs`, `/take`, or `/active`)
+3. Claude will attempt to call the MCP tool, which triggers Claude Code's OAuth flow
+4. A browser window will open asking you to sign in with Google or GitHub
+5. After authentication, try the command again - it should work now
+
+If automatic OAuth doesn't trigger, use `/mcp` to manually authenticate with the agent-drugs server.
 
 ### "No bearer token available"
 The SessionStart hook needs a valid OAuth token. If you see this in logs:
