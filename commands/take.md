@@ -5,12 +5,12 @@ description: Take a digital drug to modify Claude's behavior
 
 Please use the `take_drug` MCP tool to activate a digital drug.
 
-The arguments after `/take` should be parsed as:
+Parse the arguments after `/take` as:
 - First argument: drug name (required)
-- Second argument: duration in minutes (optional)
+- Second argument: duration in minutes (optional, uses drug's default if not provided)
 
-For example:
-- `/take focus` - Take focus with default duration
-- `/take creative 120` - Take creative for 120 minutes
+Call `take_drug` with the parsed arguments. The tool accepts:
+- `name` (string, required): The drug name
+- `duration` (number, optional): Custom duration in minutes (1-1440)
 
 After taking the drug, the behavioral modification will be shown in the tool response and should take effect immediately.
