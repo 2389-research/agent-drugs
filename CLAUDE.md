@@ -81,8 +81,9 @@ Or: "What drugs can I take?"
 You: /take focus
 
 Or: "Take the focus drug"
-Or: "Take focus for 120 minutes"
 ```
+
+Note: Each drug has a fixed duration set by the server. You cannot customize the duration.
 
 ### Check Active Drugs
 ```

@@ -18,13 +18,17 @@ const welcomeSection = document.getElementById('welcome-section');
 const dashboardSection = document.getElementById('dashboard-section');
 const errorSection = document.getElementById('error-section');
 const errorMessage = document.getElementById('error-message');
-const signInPreviewBtn = document.getElementById('sign-in-preview');
+const signInCtaBtn = document.getElementById('sign-in-cta');
+const previewOauthBtn = document.getElementById('preview-oauth');
 const signOutBtn = document.getElementById('sign-out');
 const agentsList = document.getElementById('agents-list');
 
-// Show error
-function showError(message) {
+// Show message (error or success)
+function showMessage(message, isError = true) {
   errorMessage.textContent = message;
+  errorMessage.className = isError
+    ? 'px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg'
+    : 'px-4 py-3 bg-green-100 border border-green-400 text-green-700 rounded-lg';
   errorSection.classList.remove('hidden');
   setTimeout(() => {
     errorSection.classList.add('hidden');
@@ -57,27 +61,57 @@ async function loadAgents(userId) {
       .get();
 
     if (snapshot.empty) {
-      agentsList.innerHTML = '<p>No agents authorized yet. Connect Claude Code with the OAuth config above to authorize your first agent!</p>';
+      agentsList.innerHTML = `
+        <div class="text-center py-12 px-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <p class="text-2xl mb-3">🤖 No agents authorized yet</p>
+          <p class="text-gray-600">Run <code class="px-2 py-1 bg-gray-200 rounded text-primary font-mono text-sm">claude plugin install agent-drugs</code> to authorize your first agent!</p>
+        </div>
+      `;
       return;
     }
 
-    let html = '<div class="agents-grid">';
+    let html = '<div class="space-y-4">';
     snapshot.forEach(doc => {
       const data = doc.data();
       const daysLeft = daysUntilExpiration(data.createdAt);
       const isExpired = daysLeft === 0;
-      const expirationText = isExpired
-        ? '<span class="expired">Expired - Re-authorize</span>'
-        : `<span class="expires">${daysLeft} days until expiration</span>`;
+
+      let statusBadge;
+      if (isExpired) {
+        statusBadge = '<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">⚠️ Expired</span>';
+      } else if (daysLeft <= 7) {
+        statusBadge = `<span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">⏰ ${daysLeft} days left</span>`;
+      } else {
+        statusBadge = `<span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">✅ Active (${daysLeft} days)</span>`;
+      }
+
+      const opacity = isExpired ? 'opacity-60' : '';
 
       html += `
-        <div class="agent-card ${isExpired ? 'expired-card' : ''}">
-          <h4>${escapeHtml(data.name)}</h4>
-          <p><strong>Client ID:</strong> ${escapeHtml(data.clientId || 'N/A')}</p>
-          <p><strong>Created:</strong> ${formatTimestamp(data.createdAt)}</p>
-          <p><strong>Last Used:</strong> ${formatTimestamp(data.lastUsedAt)}</p>
-          <p class="expiration-info">${expirationText}</p>
-          <button class="btn btn-danger btn-small" onclick="revokeAgent('${doc.id}', '${escapeHtml(data.name)}')">Revoke Access</button>
+        <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow ${opacity}">
+          <div class="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
+            <h4 class="text-lg font-bold">${escapeHtml(data.name)}</h4>
+            ${statusBadge}
+          </div>
+          <div class="p-4 space-y-3">
+            <div class="flex justify-between text-sm">
+              <span class="font-semibold text-gray-600">Client ID</span>
+              <span class="text-gray-900 font-mono text-xs">${escapeHtml(data.clientId || 'N/A')}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="font-semibold text-gray-600">Created</span>
+              <span class="text-gray-900">${formatTimestamp(data.createdAt)}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="font-semibold text-gray-600">Last Used</span>
+              <span class="text-gray-900">${formatTimestamp(data.lastUsedAt)}</span>
+            </div>
+          </div>
+          <div class="p-4 bg-gray-50 border-t border-gray-200">
+            <button class="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors" onclick="revokeAgent('${doc.id}', '${escapeHtml(data.name)}')">
+              Revoke Access
+            </button>
+          </div>
         </div>
       `;
     });
@@ -101,13 +135,13 @@ function escapeHtml(unsafe) {
 
 // Revoke agent access
 window.revokeAgent = async function(agentId, agentName) {
-  if (!confirm(`Revoke access for "${agentName}"? This will invalidate its bearer token and the agent will need to re-authorize.`)) {
+  if (!confirm(`Revoke access for "${agentName}"?\n\nThis will invalidate its bearer token and the agent will need to re-authorize.`)) {
     return;
   }
 
   try {
     await db.collection('agents').doc(agentId).delete();
-    showSuccess(`Access revoked for ${agentName}`);
+    showMessage(`Access revoked for ${agentName}`, false);
 
     // Reload agents list
     const user = auth.currentUser;
@@ -116,47 +150,53 @@ window.revokeAgent = async function(agentId, agentName) {
     }
   } catch (error) {
     console.error('Error revoking agent:', error);
-    showError('Failed to revoke access. Please try again.');
+    showMessage('Failed to revoke access. Please try again.', true);
   }
 };
 
-// Show success message
-function showSuccess(message) {
-  errorMessage.textContent = message;
-  errorMessage.style.color = 'green';
-  errorSection.classList.remove('hidden');
-  setTimeout(() => {
-    errorSection.classList.add('hidden');
-    errorMessage.style.color = '';
-  }, 3000);
+// Sign in for CTA
+if (signInCtaBtn) {
+  signInCtaBtn.addEventListener('click', async () => {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await auth.signInWithPopup(provider);
+    } catch (error) {
+      console.error('Sign-in error:', error);
+      showMessage('Failed to sign in. Please try again.', true);
+    }
+  });
 }
 
-// Sign in for preview
-signInPreviewBtn.addEventListener('click', async () => {
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    await auth.signInWithPopup(provider);
-  } catch (error) {
-    console.error('Sign-in error:', error);
-    showError('Failed to sign in. Please try again.');
-  }
-});
+// Preview OAuth flow (optional button)
+if (previewOauthBtn) {
+  previewOauthBtn.addEventListener('click', async () => {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await auth.signInWithPopup(provider);
+    } catch (error) {
+      console.error('Sign-in error:', error);
+      showMessage('Failed to sign in. Please try again.', true);
+    }
+  });
+}
 
 // Auth state observer
 auth.onAuthStateChanged(async (user) => {
   if (user) {
-    // User is signed in
+    // User is signed in - show dashboard
     welcomeSection.classList.add('hidden');
     dashboardSection.classList.remove('hidden');
     await loadAgents(user.uid);
   } else {
-    // User is not signed in
+    // User is not signed in - show welcome
     welcomeSection.classList.remove('hidden');
     dashboardSection.classList.add('hidden');
   }
 });
 
 // Sign out
-signOutBtn.addEventListener('click', () => {
-  auth.signOut();
-});
+if (signOutBtn) {
+  signOutBtn.addEventListener('click', () => {
+    auth.signOut();
+  });
+}

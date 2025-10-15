@@ -47,6 +47,7 @@ const oauthParams = {
 // Show error
 function showError(message) {
   errorMessage.textContent = message;
+  errorMessage.className = 'px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center';
   errorSection.classList.remove('hidden');
   loadingSection.classList.add('hidden');
   loginSection.classList.add('hidden');

@@ -25,8 +25,9 @@ const firebaseClient = new FirebaseClient(
 );
 
 // Initialize state manager after auth validation
-let stateManager: StateManager;
-let agentInfo: { agentId: string; userId: string; name: string };
+// Must be initialized in main() before any tool calls
+let stateManager: StateManager | null = null;
+let agentInfo: { agentId: string; userId: string; name: string } | null = null;
 
 // Create MCP server
 const server = new Server(
@@ -80,26 +81,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const result: any = await (async () => {
-    switch (request.params.name) {
-      case 'list_drugs':
-        return await listDrugsTool(firebaseClient);
+  // Ensure state manager is initialized before handling tool calls
+  if (!stateManager) {
+    throw new Error('Server not fully initialized. Please wait for authentication to complete.');
+  }
 
-      case 'take_drug':
-        return await takeDrugTool(
-          request.params.arguments as any,
-          firebaseClient,
-          stateManager
-        );
+  switch (request.params.name) {
+    case 'list_drugs':
+      return await listDrugsTool(firebaseClient) as any;
 
-      case 'active_drugs':
-        return await activeDrugsTool(stateManager);
-
-      default:
-        throw new Error(`Unknown tool: ${request.params.name}`);
+    case 'take_drug': {
+      const args = request.params.arguments as { name: string };
+      return await takeDrugTool(args, firebaseClient, stateManager) as any;
     }
-  })();
-  return result;
+
+    case 'active_drugs':
+      return await activeDrugsTool(stateManager) as any;
+
+    default:
+      throw new Error(`Unknown tool: ${request.params.name}`);
+  }
 });
 
 // Start server

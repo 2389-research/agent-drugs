@@ -37,10 +37,11 @@ export class FirebaseClient {
       // If service account path is provided, use it
       if (serviceAccountPath) {
         // Check if it's base64-encoded JSON (from env var) or a file path
+        // Common base64 prefixes: eyJ (JSON objects), ew (arrays), eW (other)
         const isBase64 = serviceAccountPath.length > 100 && (
-          serviceAccountPath.startsWith('ew') ||
-          serviceAccountPath.startsWith('ey') ||
-          serviceAccountPath.startsWith('ew')
+          serviceAccountPath.startsWith('eyJ') ||  // Base64 of {"...
+          serviceAccountPath.startsWith('ew') ||   // Base64 of [...
+          serviceAccountPath.startsWith('eW')      // Base64 of other content
         );
         const isJSON = serviceAccountPath.trim().startsWith('{');
 

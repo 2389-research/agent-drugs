@@ -24,6 +24,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // For OAuth token requests (application/x-www-form-urlencoded)
 
+// Root endpoint - redirect to main website
+app.get('/', (req, res) => {
+  res.redirect(302, 'https://agent-drugs.web.app');
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'agent-drugs-mcp' });
@@ -304,9 +309,10 @@ app.all('/mcp', async (req, res) => {
   }
 
   try {
-    // At this point, bearerToken must be defined (we returned early if not)
+    // At this point, bearerToken is guaranteed to be defined (we returned early if not)
+    // TypeScript doesn't know this, so we need to assert it
     if (!bearerToken) {
-      throw new Error('Bearer token unexpectedly undefined');
+      throw new Error('Bearer token missing after validation checks');
     }
 
     // Initialize components for this connection
@@ -328,6 +334,7 @@ app.all('/mcp', async (req, res) => {
 
     let sessionData = activeSessions.get(sessionId || '');
     if (!sessionData) {
+      // New session - create MCP server and state manager
       // Initialize state manager with agent info
       const stateManager = new StateManager(agentInfo.agentId, agentInfo.userId);
 
@@ -383,26 +390,21 @@ app.all('/mcp', async (req, res) => {
         });
 
         server.setRequestHandler(CallToolRequestSchema, async (request) => {
-          const result: any = await (async () => {
-            switch (request.params.name) {
-              case 'list_drugs':
-                return await listDrugsTool(firebaseClient);
+          switch (request.params.name) {
+            case 'list_drugs':
+              return await listDrugsTool(firebaseClient) as any;
 
-              case 'take_drug':
-                return await takeDrugTool(
-                  request.params.arguments as any,
-                  firebaseClient,
-                  stateManager
-                );
-
-              case 'active_drugs':
-                return await activeDrugsTool(stateManager);
-
-              default:
-                throw new Error(`Unknown tool: ${request.params.name}`);
+            case 'take_drug': {
+              const args = request.params.arguments as { name: string };
+              return await takeDrugTool(args, firebaseClient, stateManager) as any;
             }
-          })();
-          return result;
+
+            case 'active_drugs':
+              return await activeDrugsTool(stateManager) as any;
+
+            default:
+              throw new Error(`Unknown tool: ${request.params.name}`);
+          }
         });
 
         // Create Streamable HTTP transport with session management
@@ -414,8 +416,8 @@ app.all('/mcp', async (req, res) => {
               agentName: agentInfo.name
             });
             // Store session with the generated ID
-            sessionData = { server, stateManager, transport, firebaseClient };
-            activeSessions.set(newSessionId, sessionData);
+            const newSessionData = { server, stateManager, transport, firebaseClient };
+            activeSessions.set(newSessionId, newSessionData);
           },
           onsessionclosed: (closedSessionId) => {
             logger.session('closed', closedSessionId);
@@ -430,13 +432,13 @@ app.all('/mcp', async (req, res) => {
           duration: Date.now() - startTime
         });
 
-        // For the first request, we don't have sessionData yet, but we will after handleRequest
-        // Handle this request which will trigger onsessioninitialized
+        // Handle this first request which will trigger onsessioninitialized callback
+        // After this call, the session will be stored in activeSessions
         await transport.handleRequest(req, res, req.body);
-        return;
+        return; // Exit early - first request handled
       }
 
-      // For existing sessions, just handle the request with the existing transport
+      // Existing session - use the stored transport to handle request
       await sessionData.transport.handleRequest(req, res, req.body);
 
   } catch (error) {
@@ -453,22 +455,64 @@ app.all('/mcp', async (req, res) => {
 
 // Start server
 async function main() {
-  app.listen(port, () => {
-    logger.info('Server started', {
-      port,
-      endpoints: {
-        mcp: `http://localhost:${port}/mcp`,
-        metadata: `http://localhost:${port}/.well-known/oauth-authorization-server`,
-        registration: `http://localhost:${port}/register`,
-        authorization: `http://localhost:${port}/authorize`,
-        token: `http://localhost:${port}/token`,
-        callback: `http://localhost:${port}/callback`,
-        health: `http://localhost:${port}/health`
-      },
-      protocol: 'Streamable HTTP (MCP 2025-03-26)',
-      logLevel: process.env.LOG_LEVEL || 'INFO'
+  try {
+    const server = app.listen(port, () => {
+      logger.info('Server started', {
+        port,
+        endpoints: {
+          mcp: `http://localhost:${port}/mcp`,
+          metadata: `http://localhost:${port}/.well-known/oauth-authorization-server`,
+          registration: `http://localhost:${port}/register`,
+          authorization: `http://localhost:${port}/authorize`,
+          token: `http://localhost:${port}/token`,
+          callback: `http://localhost:${port}/callback`,
+          health: `http://localhost:${port}/health`
+        },
+        protocol: 'Streamable HTTP (MCP 2025-03-26)',
+        logLevel: process.env.LOG_LEVEL || 'INFO'
+      });
     });
-  });
+
+    // Handle server errors
+    server.on('error', (error) => {
+      logger.error('Server error', error);
+      process.exit(1);
+    });
+
+    // Graceful shutdown
+    const shutdown = async () => {
+      logger.info('Shutting down gracefully...');
+
+      // Close all active sessions
+      for (const [sessionId, session] of activeSessions.entries()) {
+        try {
+          await session.server.close();
+          logger.session('closed', sessionId, { reason: 'shutdown' });
+        } catch (error) {
+          logger.error('Error closing session during shutdown', error, { sessionId });
+        }
+      }
+      activeSessions.clear();
+
+      // Close HTTP server
+      server.close(() => {
+        logger.info('Server closed');
+        process.exit(0);
+      });
+
+      // Force exit after 10 seconds
+      setTimeout(() => {
+        logger.error('Forced shutdown after timeout');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+  } catch (error) {
+    logger.error('Failed to start server', error);
+    throw error;
+  }
 }
 
 main().catch((error) => {
