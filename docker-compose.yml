@@ -6,8 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      # JWT token for authentication
-      - AGENT_DRUGS_JWT=${AGENT_DRUGS_JWT}
+      # Bearer token for authentication
+      - AGENT_DRUGS_BEARER_TOKEN=${AGENT_DRUGS_BEARER_TOKEN}
       # Firebase project ID
       - FIREBASE_PROJECT_ID=agent-drugs
       # Service account credentials

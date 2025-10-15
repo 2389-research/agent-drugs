@@ -14,13 +14,19 @@ import { takeDrugTool } from './tools/take-drug.js';
 import { activeDrugsTool } from './tools/active-drugs.js';
 
 // Initialize components
-const config = loadConfig();
+const config = loadConfig(true); // Require bearer token for stdio mode
+if (!config.bearerToken) {
+  throw new Error('Bearer token is required for stdio mode');
+}
 const firebaseClient = new FirebaseClient(
-  config.jwt,
+  config.bearerToken,
   config.firebaseProjectId,
   config.serviceAccountPath
 );
-const stateManager = new StateManager();
+
+// Initialize state manager after auth validation
+let stateManager: StateManager;
+let agentInfo: { agentId: string; userId: string; name: string };
 
 // Create MCP server
 const server = new Server(
@@ -91,7 +97,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
 
       case 'active_drugs':
-        return activeDrugsTool(stateManager);
+        return await activeDrugsTool(stateManager);
 
       default:
         throw new Error(`Unknown tool: ${request.params.name}`);
@@ -103,10 +109,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Start server
 async function main() {
   try {
-    // Validate JWT on startup
-    console.error('Validating JWT...');
-    const agentInfo = await firebaseClient.validateJWT();
+    // Validate bearer token on startup
+    console.error('Validating bearer token...');
+    agentInfo = await firebaseClient.validateBearerToken();
     console.error(`Authenticated as agent: ${agentInfo.name} (userId: ${agentInfo.userId})`);
+
+    // Initialize state manager with agent info
+    stateManager = new StateManager(agentInfo.agentId, agentInfo.userId);
 
     // Connect transport
     const transport = new StdioServerTransport();

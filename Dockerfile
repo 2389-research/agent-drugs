@@ -29,8 +29,8 @@ COPY --from=builder /app/dist ./dist
 # Service account will be mounted as volume or set via environment
 ENV NODE_ENV=production
 
-# Expose health check port (optional, for fly.io)
-EXPOSE 8080
+# Expose HTTP port
+EXPOSE 3000
 
-# Run the MCP server
-CMD ["node", "dist/index.js"]
+# Run the HTTP MCP server
+CMD ["node", "dist/http-server.js"]

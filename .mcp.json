@@ -1,14 +1,11 @@
 {
-    "mcpServers": {
-        "agent-drugs": {
-            "command": "node",
-            "args": [
-                "/Users/clint/code/agent-drugs/dist/index.js"
-            ],
-            "env": {
-                "AGENT_DRUGS_API_KEY": "agdrug_Ait69oeqUH1p2IPk3SGb1hEldTUTVijZ",
-                "FIREBASE_PROJECT_ID": "agent-drugs"
-            }
-        }
+  "mcpServers": {
+    "agent-drugs": {
+      "type": "http",
+      "url": "https://agent-drugs-mcp.fly.dev/mcp",
+      "oauth": {
+        "metadata_url": "https://us-central1-agent-drugs.cloudfunctions.net/oauthMetadata"
+      }
     }
+  }
 }

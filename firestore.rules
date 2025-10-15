@@ -7,17 +7,17 @@ service cloud.firestore {
       allow write: if false; // Only admins via console
     }
 
-    // Agents collection: JWT-based authentication for MCP
+    // Agents collection: Bearer token authentication for MCP
     // Users can manage their own agents
     match /agents/{agentId} {
       // Users can read their own agents
       allow read: if request.auth != null &&
         resource.data.userId == request.auth.uid;
 
-      // Users can create agents (via Cloud Function generateJWT)
+      // Users can create agents (via Cloud Function generateBearerToken)
       allow create: if request.auth != null &&
         request.resource.data.userId == request.auth.uid &&
-        request.resource.data.keys().hasAll(['userId', 'name', 'jwt', 'createdAt', 'lastUsedAt']);
+        request.resource.data.keys().hasAll(['userId', 'name', 'bearerToken', 'createdAt', 'lastUsedAt']);
 
       // Users can update lastUsedAt timestamp
       allow update: if request.auth != null &&
@@ -35,12 +35,38 @@ service cloud.firestore {
       allow read: if request.auth != null &&
         resource.data.userId == request.auth.uid;
 
-      // Allow MCP server to create events (validates JWT first)
+      // Allow MCP server to create events (validates bearer token first)
       // MCP server uses service account, not user auth
       allow create: if true;
 
       // No updates or deletes
       allow update, delete: if false;
+    }
+
+    // Active drugs: Per-agent state for drug effects
+    // MCP server manages these, users can read their own
+    match /active_drugs/{drugId} {
+      // Users can read their own active drugs
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+
+      // MCP server (service account) can write
+      // Users cannot directly write
+      allow write: if false;
+    }
+
+    // OAuth authorization codes: Temporary codes for OAuth flow
+    // Cloud Functions manage these, users should not access directly
+    match /oauth_codes/{codeId} {
+      // No direct user access
+      allow read, write: if false;
+    }
+
+    // OAuth registered clients: Dynamic client registration (RFC 7591)
+    // Cloud Functions manage these via service account
+    match /oauth_clients/{clientId} {
+      // No direct user access - managed by Cloud Functions
+      allow read, write: if false;
     }
 
     // Legacy api_keys collection: Deprecated, will be removed

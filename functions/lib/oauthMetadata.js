@@ -7,15 +7,16 @@ const functions = require("firebase-functions");
  * MCP clients use this for OAuth discovery (RFC 8414)
  */
 async function getOAuthMetadataHandler() {
-    const baseUrl = 'https://agent-drugs.web.app';
+    const functionsBaseUrl = 'https://us-central1-agent-drugs.cloudfunctions.net';
+    const hostingBaseUrl = 'https://agent-drugs.web.app';
     return {
-        issuer: baseUrl,
-        authorization_endpoint: `${baseUrl}/oauth/authorize`,
-        token_endpoint: `${baseUrl}/oauth/token`,
-        registration_endpoint: `${baseUrl}/oauth/register`,
+        issuer: hostingBaseUrl,
+        authorization_endpoint: `${functionsBaseUrl}/oauthAuthorize`,
+        token_endpoint: `${functionsBaseUrl}/oauthToken`,
+        registration_endpoint: `${functionsBaseUrl}/oauthRegister`,
         scopes_supported: ['drugs:read', 'drugs:write'],
         response_types_supported: ['code'],
-        grant_types_supported: ['authorization_code', 'refresh_token'],
+        grant_types_supported: ['authorization_code'],
         code_challenge_methods_supported: ['S256'],
     };
 }
@@ -42,7 +43,7 @@ exports.oauthMetadata = functions.https.onRequest(async (req, res) => {
 });
 /**
  * OAuth authorization initiation
- * Redirects to Firebase Auth for user login
+ * Redirects to Firebase Hosting OAuth authorization page
  */
 exports.oauthAuthorize = functions.https.onRequest(async (req, res) => {
     // Extract OAuth parameters
@@ -55,20 +56,26 @@ exports.oauthAuthorize = functions.https.onRequest(async (req, res) => {
         });
         return;
     }
-    // Store OAuth session in cookie for callback
-    res.cookie('oauth_session', JSON.stringify({
-        client_id,
-        redirect_uri,
-        scope,
-        state,
-        code_challenge,
-        code_challenge_method
-    }), {
-        httpOnly: true,
-        secure: true,
-        maxAge: 600000 // 10 minutes
-    });
-    // Redirect to Firebase hosted login page
-    res.redirect('/login?oauth=true');
+    // Validate PKCE
+    if (!code_challenge || code_challenge_method !== 'S256') {
+        res.status(400).json({
+            error: 'invalid_request',
+            error_description: 'PKCE with S256 is required'
+        });
+        return;
+    }
+    // Build redirect URL to hosted authorization page
+    const authUrl = new URL('https://agent-drugs.web.app/oauth-authorize.html');
+    authUrl.searchParams.set('client_id', client_id);
+    authUrl.searchParams.set('redirect_uri', redirect_uri);
+    authUrl.searchParams.set('response_type', 'code');
+    if (scope)
+        authUrl.searchParams.set('scope', scope);
+    if (state)
+        authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('code_challenge', code_challenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+    // Redirect to authorization page
+    res.redirect(authUrl.toString());
 });
 //# sourceMappingURL=oauthMetadata.js.map

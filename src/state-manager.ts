@@ -1,29 +1,109 @@
+import * as admin from 'firebase-admin';
+
 export interface ActiveDrug {
   name: string;
   prompt: string;
   expiresAt: Date;
 }
 
-export class StateManager {
-  private drugs: Map<string, ActiveDrug> = new Map();
+export interface ActiveDrugFirestore {
+  name: string;
+  prompt: string;
+  expiresAt: admin.firestore.Timestamp;
+}
 
-  addDrug(name: string, prompt: string, expiresAt: Date): void {
-    this.drugs.set(name, { name, prompt, expiresAt });
+/**
+ * StateManager using Firestore for persistence across instances
+ * Each agent has their own active drugs stored in Firestore
+ */
+export class StateManager {
+  private db: admin.firestore.Firestore;
+  private agentId: string;
+  private userId: string;
+
+  constructor(agentId: string, userId: string) {
+    this.db = admin.firestore();
+    this.agentId = agentId;
+    this.userId = userId;
   }
 
-  getActiveDrugs(): ActiveDrug[] {
-    const now = new Date();
-    const active: ActiveDrug[] = [];
+  /**
+   * Add a drug to the agent's active drugs
+   * Stored in Firestore so it persists across MCP server instances
+   */
+  async addDrug(name: string, prompt: string, expiresAt: Date): Promise<void> {
+    const docRef = this.db
+      .collection('active_drugs')
+      .doc(`${this.userId}_${this.agentId}`);
 
-    for (const [name, drug] of this.drugs.entries()) {
-      if (drug.expiresAt > now) {
-        active.push(drug);
-      } else {
-        // Clean up expired drugs
-        this.drugs.delete(name);
-      }
+    // Get current drugs
+    const doc = await docRef.get();
+    const currentDrugs: ActiveDrugFirestore[] = doc.exists ? (doc.data()?.drugs || []) : [];
+
+    // Add new drug (or replace if already exists)
+    const newDrug: ActiveDrugFirestore = {
+      name,
+      prompt,
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt)
+    };
+
+    // Remove old version of same drug if exists
+    const filteredDrugs = currentDrugs.filter(d => d.name !== name);
+    filteredDrugs.push(newDrug);
+
+    // Store back to Firestore
+    await docRef.set({
+      userId: this.userId,
+      agentId: this.agentId,
+      drugs: filteredDrugs,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  /**
+   * Get all active drugs for this agent
+   * Filters out expired drugs and cleans them up
+   */
+  async getActiveDrugs(): Promise<ActiveDrug[]> {
+    const docRef = this.db
+      .collection('active_drugs')
+      .doc(`${this.userId}_${this.agentId}`);
+
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return [];
     }
 
-    return active;
+    const data = doc.data();
+    if (!data || !data.drugs) {
+      return [];
+    }
+
+    const now = admin.firestore.Timestamp.now();
+    const activeDrugs: ActiveDrug[] = [];
+    const stillActiveDrugs: ActiveDrugFirestore[] = [];
+
+    for (const drug of data.drugs as ActiveDrugFirestore[]) {
+      if (drug.expiresAt.toMillis() > now.toMillis()) {
+        // Still active
+        activeDrugs.push({
+          name: drug.name,
+          prompt: drug.prompt,
+          expiresAt: drug.expiresAt.toDate()
+        });
+        stillActiveDrugs.push(drug);
+      }
+      // Expired drugs are filtered out
+    }
+
+    // Clean up expired drugs in Firestore
+    if (stillActiveDrugs.length !== data.drugs.length) {
+      await docRef.update({
+        drugs: stillActiveDrugs,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    return activeDrugs;
   }
 }

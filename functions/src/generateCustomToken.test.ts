@@ -35,9 +35,9 @@ jest.mock('crypto', () => ({
 }));
 
 // NOW import the module
-import { generateJWTHandler } from './generateCustomToken';
+import { generateBearerTokenHandler } from './generateCustomToken';
 
-describe('generateJWTHandler', () => {
+describe('generateBearerTokenHandler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCollection.mockReturnValue({
@@ -45,7 +45,7 @@ describe('generateJWTHandler', () => {
     });
   });
 
-  it('should generate JWT and store agent for authenticated user', async () => {
+  it('should generate bearer token and store agent for authenticated user', async () => {
     mockAdd.mockResolvedValue({ id: 'agent_123' });
 
     const mockRequest = {
@@ -57,9 +57,9 @@ describe('generateJWTHandler', () => {
       }
     };
 
-    const result = await generateJWTHandler(mockRequest as any);
+    const result = await generateBearerTokenHandler(mockRequest as any);
 
-    expect(result.jwt).toContain('agdrug_jwt_');
+    expect(result.bearerToken).toContain('agdrug_');
     expect(result.agentId).toBe('agent_123');
     expect(result.agentName).toBe('Test Agent');
     expect(mockCollection).toHaveBeenCalledWith('agents');
@@ -67,7 +67,7 @@ describe('generateJWTHandler', () => {
       expect.objectContaining({
         userId: 'user_123',
         name: 'Test Agent',
-        jwt: expect.stringContaining('agdrug_jwt_')
+        bearerToken: expect.stringContaining('agdrug_')
       })
     );
   });
@@ -82,7 +82,7 @@ describe('generateJWTHandler', () => {
       data: {}
     };
 
-    const result = await generateJWTHandler(mockRequest as any);
+    const result = await generateBearerTokenHandler(mockRequest as any);
 
     expect(result.agentName).toBe('Default Agent');
   });
@@ -93,7 +93,7 @@ describe('generateJWTHandler', () => {
     };
 
     await expect(
-      generateJWTHandler(mockRequest as any)
+      generateBearerTokenHandler(mockRequest as any)
     ).rejects.toThrow('User must be authenticated');
   });
 });

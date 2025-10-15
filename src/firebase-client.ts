@@ -24,7 +24,7 @@ export class FirebaseClient {
   private agentInfo: AgentInfo | null = null;
 
   constructor(
-    private readonly jwt: string,
+    private readonly bearerToken: string,
     private readonly projectId: string,
     serviceAccountPath?: string
   ) {
@@ -36,7 +36,34 @@ export class FirebaseClient {
 
       // If service account path is provided, use it
       if (serviceAccountPath) {
-        config.credential = admin.credential.cert(serviceAccountPath);
+        // Check if it's base64-encoded JSON (from env var) or a file path
+        const isBase64 = serviceAccountPath.length > 100 && (
+          serviceAccountPath.startsWith('ew') ||
+          serviceAccountPath.startsWith('ey') ||
+          serviceAccountPath.startsWith('ew')
+        );
+        const isJSON = serviceAccountPath.trim().startsWith('{');
+
+        if (isBase64 || isJSON) {
+          // It's base64 or JSON content, decode and parse
+          let serviceAccountJson;
+          try {
+            if (isJSON) {
+              // Try to parse as JSON first
+              serviceAccountJson = JSON.parse(serviceAccountPath);
+            } else {
+              // Decode from base64
+              const decoded = Buffer.from(serviceAccountPath, 'base64').toString('utf-8');
+              serviceAccountJson = JSON.parse(decoded);
+            }
+          } catch (error) {
+            throw new Error(`Failed to parse service account credentials: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+          config.credential = admin.credential.cert(serviceAccountJson);
+        } else {
+          // It's a file path
+          config.credential = admin.credential.cert(serviceAccountPath);
+        }
       } else {
         // Use Application Default Credentials (for fly.io)
         config.credential = admin.credential.applicationDefault();
@@ -49,20 +76,20 @@ export class FirebaseClient {
   }
 
   /**
-   * Validate JWT against Firestore agents collection
+   * Validate bearer token against Firestore agents collection
    * Returns agent info if valid, throws error if invalid
    */
-  async validateJWT(): Promise<AgentInfo> {
+  async validateBearerToken(): Promise<AgentInfo> {
     try {
-      // Query agents collection for matching JWT
+      // Query agents collection for matching bearer token
       const snapshot = await this.db
         .collection('agents')
-        .where('jwt', '==', this.jwt)
+        .where('bearerToken', '==', this.bearerToken)
         .limit(1)
         .get();
 
       if (snapshot.empty) {
-        throw new FirebaseAuthError('Invalid JWT: No matching agent found');
+        throw new FirebaseAuthError('Invalid bearer token: No matching agent found');
       }
 
       const doc = snapshot.docs[0];
@@ -70,6 +97,15 @@ export class FirebaseClient {
 
       if (!data.userId || !data.name) {
         throw new FirebaseAuthError('Invalid agent data in Firestore');
+      }
+
+      // Check token expiration (90 days)
+      const createdAt = data.createdAt as admin.firestore.Timestamp;
+      if (createdAt) {
+        const ageInDays = (Date.now() - createdAt.toMillis()) / (1000 * 60 * 60 * 24);
+        if (ageInDays > 90) {
+          throw new FirebaseAuthError('Bearer token expired (90 days). Please re-authorize.');
+        }
       }
 
       // Update lastUsedAt timestamp
@@ -89,7 +125,7 @@ export class FirebaseClient {
         throw error;
       }
       throw new FirebaseAuthError(
-        `JWT validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Bearer token validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
   }

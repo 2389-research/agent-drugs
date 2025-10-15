@@ -34,14 +34,14 @@ jest.mock('crypto', () => ({
 }));
 // NOW import the module
 const generateCustomToken_1 = require("./generateCustomToken");
-describe('generateJWTHandler', () => {
+describe('generateBearerTokenHandler', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockCollection.mockReturnValue({
             add: mockAdd
         });
     });
-    it('should generate JWT and store agent for authenticated user', async () => {
+    it('should generate bearer token and store agent for authenticated user', async () => {
         mockAdd.mockResolvedValue({ id: 'agent_123' });
         const mockRequest = {
             auth: {
@@ -51,15 +51,15 @@ describe('generateJWTHandler', () => {
                 agentName: 'Test Agent'
             }
         };
-        const result = await (0, generateCustomToken_1.generateJWTHandler)(mockRequest);
-        expect(result.jwt).toContain('agdrug_jwt_');
+        const result = await (0, generateCustomToken_1.generateBearerTokenHandler)(mockRequest);
+        expect(result.bearerToken).toContain('agdrug_');
         expect(result.agentId).toBe('agent_123');
         expect(result.agentName).toBe('Test Agent');
         expect(mockCollection).toHaveBeenCalledWith('agents');
         expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
             userId: 'user_123',
             name: 'Test Agent',
-            jwt: expect.stringContaining('agdrug_jwt_')
+            bearerToken: expect.stringContaining('agdrug_')
         }));
     });
     it('should use default agent name if not provided', async () => {
@@ -70,14 +70,14 @@ describe('generateJWTHandler', () => {
             },
             data: {}
         };
-        const result = await (0, generateCustomToken_1.generateJWTHandler)(mockRequest);
+        const result = await (0, generateCustomToken_1.generateBearerTokenHandler)(mockRequest);
         expect(result.agentName).toBe('Default Agent');
     });
     it('should throw error if user is not authenticated', async () => {
         const mockRequest = {
             auth: undefined
         };
-        await expect((0, generateCustomToken_1.generateJWTHandler)(mockRequest)).rejects.toThrow('User must be authenticated');
+        await expect((0, generateCustomToken_1.generateBearerTokenHandler)(mockRequest)).rejects.toThrow('User must be authenticated');
     });
 });
 //# sourceMappingURL=generateCustomToken.test.js.map

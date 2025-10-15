@@ -1,49 +1,37 @@
-# fly.toml - Fly.io configuration for agent-drugs MCP server
+# fly.toml app configuration file generated for agent-drugs-mcp on 2025-10-14T16:11:07-05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "agent-drugs-mcp"
-primary_region = "sjc"  # San Jose - choose closest to your users
+app = 'agent-drugs-mcp'
+primary_region = 'sjc'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
+
+[deploy]
 
 [env]
-  NODE_ENV = "production"
-  FIREBASE_PROJECT_ID = "agent-drugs"
+  FIREBASE_PROJECT_ID = 'agent-drugs'
+  NODE_ENV = 'production'
+  PORT = '3000'
 
-[secrets]
-  # Set these with: fly secrets set KEY=value
-  # AGENT_DRUGS_JWT="agdrug_jwt_..."  # Not actually used, clients provide their own
-  # GOOGLE_APPLICATION_CREDENTIALS will be set via fly secrets
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
 
-[[services]]
-  protocol = "tcp"
-  internal_port = 8080
-  processes = ["app"]
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
 
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
-
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
-
-  [services.concurrency]
-    type = "connections"
-    hard_limit = 25
-    soft_limit = 20
-
-  [[services.tcp_checks]]
-    interval = "15s"
-    timeout = "2s"
-    grace_period = "1s"
-    restart_limit = 0
-
-[checks]
-  [checks.health]
-    grace_period = "10s"
-    interval = "30s"
-    method = "GET"
-    path = "/health"
-    protocol = "http"
-    timeout = "5s"
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

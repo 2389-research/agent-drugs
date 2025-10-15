@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authorize Agent Drugs</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Agent Drugs</h1>
+    <p class="tagline">Authorization Request</p>
+
+    <!-- Loading state -->
+    <div id="loading-section" class="section">
+      <p>Loading authorization request...</p>
+    </div>
+
+    <!-- Login section (if not authenticated) -->
+    <div id="login-section" class="section hidden">
+      <p><strong id="client-name">An application</strong> wants to access Agent Drugs on your behalf.</p>
+      <p>Sign in to authorize:</p>
+      <button id="google-signin" class="btn btn-google">Sign in with Google</button>
+      <button id="github-signin" class="btn btn-github">Sign in with GitHub</button>
+    </div>
+
+    <!-- Authorization section (if authenticated) -->
+    <div id="authorize-section" class="section hidden">
+      <p><strong id="client-name-auth">An application</strong> is requesting access to:</p>
+
+      <div class="scopes-list">
+        <div class="scope-item">
+          <span class="scope-icon">✅</span>
+          <div>
+            <strong>Read available drugs</strong>
+            <p>View the catalog of available digital drugs</p>
+          </div>
+        </div>
+        <div class="scope-item">
+          <span class="scope-icon">✅</span>
+          <div>
+            <strong>Use drugs</strong>
+            <p>Take drugs to modify AI behavior</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="agent-selection">
+        <label>Select Agent:</label>
+
+        <!-- Existing agents list -->
+        <div id="existing-agents-list" class="hidden">
+          <select id="agent-select" class="agent-select">
+            <option value="new">➕ Create New Agent</option>
+          </select>
+        </div>
+
+        <!-- Loading agents -->
+        <div id="agents-loading" class="loading-text">
+          Loading your agents...
+        </div>
+
+        <!-- New agent name input (shown when creating new) -->
+        <div id="new-agent-section" class="agent-name-input hidden">
+          <label for="agent-name">New Agent Name:</label>
+          <input type="text" id="agent-name" placeholder="My AI Agent">
+        </div>
+      </div>
+
+      <button id="authorize-btn" class="btn btn-primary">Authorize</button>
+      <button id="deny-btn" class="btn btn-secondary">Deny</button>
+    </div>
+
+    <!-- Error section -->
+    <div id="error-section" class="section hidden">
+      <p class="error" id="error-message"></p>
+    </div>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
+  <script src="oauth-authorize.js"></script>
+</body>
+</html>

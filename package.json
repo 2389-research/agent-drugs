@@ -11,14 +11,33 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "dev:stdio": "ts-node src/index.ts",
+    "dev:http": "ts-node src/http-server.ts",
+    "start": "node dist/http-server.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "claude-code",
+    "claude-plugin",
+    "mcp-server",
+    "prompt-injection",
+    "behavioral-modification",
+    "ai-drugs"
+  ],
+  "author": "2389 Research",
   "license": "ISC",
-  "description": "",
+  "description": "Digital drugs that modify Claude's behavior through prompt injection. MCP server + hooks for immediate and persistent effects.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/2389-research/agent-drugs"
+  },
+  "homepage": "https://agent-drugs.web.app",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "firebase-admin": "^13.5.0"
   },
   "devDependencies": {
@@ -26,6 +45,7 @@
     "@types/node": "^24.7.2",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.5",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
 }

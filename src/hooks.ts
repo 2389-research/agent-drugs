@@ -7,8 +7,8 @@ export interface HookOutput {
   };
 }
 
-export function generateSessionStartHook(state: StateManager): HookOutput {
-  const drugs = state.getActiveDrugs();
+export async function generateSessionStartHook(state: StateManager): Promise<HookOutput> {
+  const drugs = await state.getActiveDrugs();
 
   if (drugs.length === 0) {
     return {

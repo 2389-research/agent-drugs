@@ -3,3 +3,7 @@ dist/
 *.log
 .env
 .DS_Store
+service-account.json
+*.pem
+*.key
+.mcp.local.json

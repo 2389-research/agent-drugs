@@ -14,16 +14,13 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // DOM elements
-const loginSection = document.getElementById('login-section');
-const keySection = document.getElementById('key-section');
+const welcomeSection = document.getElementById('welcome-section');
+const dashboardSection = document.getElementById('dashboard-section');
 const errorSection = document.getElementById('error-section');
 const errorMessage = document.getElementById('error-message');
-const googleSignInBtn = document.getElementById('google-signin');
-const githubSignInBtn = document.getElementById('github-signin');
+const signInPreviewBtn = document.getElementById('sign-in-preview');
 const signOutBtn = document.getElementById('sign-out');
-const copyKeyBtn = document.getElementById('copy-key');
-const apiKeyDisplay = document.getElementById('api-key');
-const keyInConfig = document.getElementById('key-in-config');
+const agentsList = document.getElementById('agents-list');
 
 // Show error
 function showError(message) {
@@ -34,106 +31,132 @@ function showError(message) {
   }, 5000);
 }
 
-// Generate random API key
-function generateApiKey() {
-  const prefix = 'agdrug_';
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const length = 32;
-  let key = prefix;
-
-  const randomValues = new Uint8Array(length);
-  crypto.getRandomValues(randomValues);
-
-  for (let i = 0; i < length; i++) {
-    key += charset[randomValues[i] % charset.length];
-  }
-
-  return key;
+// Format timestamp
+function formatTimestamp(timestamp) {
+  if (!timestamp) return 'Never';
+  const date = timestamp.toDate();
+  return date.toLocaleString();
 }
 
-// Get or create API key for user
-async function getOrCreateApiKey(userId) {
+// Calculate days until expiration
+function daysUntilExpiration(createdAt) {
+  if (!createdAt) return null;
+  const created = createdAt.toMillis();
+  const now = Date.now();
+  const ageInDays = (now - created) / (1000 * 60 * 60 * 24);
+  const remaining = 90 - ageInDays;
+  return Math.max(0, Math.floor(remaining));
+}
+
+// Load user's agents
+async function loadAgents(userId) {
   try {
-    // Query for existing key
-    const snapshot = await db.collection('api_keys')
+    const snapshot = await db.collection('agents')
       .where('userId', '==', userId)
-      .limit(1)
+      .orderBy('lastUsedAt', 'desc')
       .get();
 
-    if (!snapshot.empty) {
-      // Return existing key
-      return snapshot.docs[0].data().key;
+    if (snapshot.empty) {
+      agentsList.innerHTML = '<p>No agents authorized yet. Connect Claude Code with the OAuth config above to authorize your first agent!</p>';
+      return;
     }
 
-    // Generate new key
-    const newKey = generateApiKey();
-    await db.collection('api_keys').add({
-      key: newKey,
-      userId: userId,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    let html = '<div class="agents-grid">';
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const daysLeft = daysUntilExpiration(data.createdAt);
+      const isExpired = daysLeft === 0;
+      const expirationText = isExpired
+        ? '<span class="expired">Expired - Re-authorize</span>'
+        : `<span class="expires">${daysLeft} days until expiration</span>`;
 
-    return newKey;
+      html += `
+        <div class="agent-card ${isExpired ? 'expired-card' : ''}">
+          <h4>${escapeHtml(data.name)}</h4>
+          <p><strong>Client ID:</strong> ${escapeHtml(data.clientId || 'N/A')}</p>
+          <p><strong>Created:</strong> ${formatTimestamp(data.createdAt)}</p>
+          <p><strong>Last Used:</strong> ${formatTimestamp(data.lastUsedAt)}</p>
+          <p class="expiration-info">${expirationText}</p>
+          <button class="btn btn-danger btn-small" onclick="revokeAgent('${doc.id}', '${escapeHtml(data.name)}')">Revoke Access</button>
+        </div>
+      `;
+    });
+    html += '</div>';
+    agentsList.innerHTML = html;
   } catch (error) {
-    console.error('Error getting/creating API key:', error);
-    throw error;
+    console.error('Error loading agents:', error);
+    agentsList.innerHTML = '<p class="error">Failed to load agents</p>';
   }
 }
 
-// Auth state observer
-auth.onAuthStateChanged(async (user) => {
-  if (user) {
-    loginSection.classList.add('hidden');
-    keySection.classList.remove('hidden');
+// Escape HTML to prevent XSS
+function escapeHtml(unsafe) {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
-    try {
-      // Get or create API key
-      const apiKey = await getOrCreateApiKey(user.uid);
-
-      // Display key
-      apiKeyDisplay.textContent = apiKey;
-      keyInConfig.textContent = apiKey;
-    } catch (error) {
-      console.error('Error loading API key:', error);
-      showError('Failed to load API key. Please refresh the page.');
-    }
-  } else {
-    loginSection.classList.remove('hidden');
-    keySection.classList.add('hidden');
+// Revoke agent access
+window.revokeAgent = async function(agentId, agentName) {
+  if (!confirm(`Revoke access for "${agentName}"? This will invalidate its bearer token and the agent will need to re-authorize.`)) {
+    return;
   }
-});
 
-// Sign in handlers
-googleSignInBtn.addEventListener('click', async () => {
+  try {
+    await db.collection('agents').doc(agentId).delete();
+    showSuccess(`Access revoked for ${agentName}`);
+
+    // Reload agents list
+    const user = auth.currentUser;
+    if (user) {
+      await loadAgents(user.uid);
+    }
+  } catch (error) {
+    console.error('Error revoking agent:', error);
+    showError('Failed to revoke access. Please try again.');
+  }
+};
+
+// Show success message
+function showSuccess(message) {
+  errorMessage.textContent = message;
+  errorMessage.style.color = 'green';
+  errorSection.classList.remove('hidden');
+  setTimeout(() => {
+    errorSection.classList.add('hidden');
+    errorMessage.style.color = '';
+  }, 3000);
+}
+
+// Sign in for preview
+signInPreviewBtn.addEventListener('click', async () => {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     await auth.signInWithPopup(provider);
   } catch (error) {
-    console.error('Google sign-in error:', error);
-    showError('Failed to sign in with Google. Please try again.');
+    console.error('Sign-in error:', error);
+    showError('Failed to sign in. Please try again.');
   }
 });
 
-githubSignInBtn.addEventListener('click', async () => {
-  try {
-    const provider = new firebase.auth.GithubAuthProvider();
-    await auth.signInWithPopup(provider);
-  } catch (error) {
-    console.error('GitHub sign-in error:', error);
-    showError('Failed to sign in with GitHub. Please try again.');
+// Auth state observer
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    // User is signed in
+    welcomeSection.classList.add('hidden');
+    dashboardSection.classList.remove('hidden');
+    await loadAgents(user.uid);
+  } else {
+    // User is not signed in
+    welcomeSection.classList.remove('hidden');
+    dashboardSection.classList.add('hidden');
   }
 });
 
+// Sign out
 signOutBtn.addEventListener('click', () => {
   auth.signOut();
-});
-
-copyKeyBtn.addEventListener('click', () => {
-  const keyText = apiKeyDisplay.textContent;
-  navigator.clipboard.writeText(keyText).then(() => {
-    copyKeyBtn.textContent = 'Copied!';
-    setTimeout(() => {
-      copyKeyBtn.textContent = 'Copy';
-    }, 2000);
-  });
 });

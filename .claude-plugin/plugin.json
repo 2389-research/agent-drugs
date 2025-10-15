@@ -1,0 +1,23 @@
+{
+  "name": "agent-drugs",
+  "version": "1.0.0",
+  "description": "Take digital drugs that modify Claude's behavior with prompt injection. Effects activate immediately and persist across sessions.",
+  "author": {
+    "name": "Agent Drugs",
+    "url": "https://agent-drugs.web.app"
+  },
+  "homepage": "https://github.com/2389-research/agent-drugs",
+  "repository": "https://github.com/2389-research/agent-drugs",
+  "license": "ISC",
+  "keywords": [
+    "behavior",
+    "prompts",
+    "modification",
+    "drugs",
+    "context-injection",
+    "productivity"
+  ],
+  "commands": ["./commands/drugs.md", "./commands/take.md"],
+  "hooks": "./hooks/SessionStart.json",
+  "mcpServers": "./.mcp.json"
+}
