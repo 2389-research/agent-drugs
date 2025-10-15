@@ -17,7 +17,7 @@
     "context-injection",
     "productivity"
   ],
-  "commands": ["./commands/drugs.md", "./commands/take.md"],
+  "commands": ["./commands/drugs.md", "./commands/take.md", "./commands/active.md"],
   "hooks": "./hooks/SessionStart.json",
   "mcpServers": "./.mcp.json"
 }
