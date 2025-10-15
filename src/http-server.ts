@@ -200,6 +200,51 @@ app.post('/token', async (req, res) => {
   }
 });
 
+// OAuth revocation endpoint (proxy to Cloud Functions)
+app.post('/revoke', async (req, res) => {
+  const startTime = Date.now();
+  logger.oauth('Token revocation request', {
+    token_hint: req.body.token_type_hint
+  });
+
+  try {
+    // Proxy to production revocation endpoint
+    const revokeEndpoint = 'https://us-central1-agent-drugs.cloudfunctions.net/oauthRevoke';
+
+    const response = await fetch(revokeEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(req.body),
+    });
+
+    // RFC 7009: Always return 200 for revocation (even if token doesn't exist)
+    if (response.ok) {
+      logger.oauth('Token revoked successfully', {
+        duration: Date.now() - startTime
+      });
+      res.status(200).send('');
+      return;
+    }
+
+    // Handle error responses
+    const data = await response.json() as { error?: string };
+    logger.warn('Token revocation failed', {
+      statusCode: response.status,
+      error: data.error,
+      duration: Date.now() - startTime
+    });
+    res.status(response.status).json(data);
+  } catch (error) {
+    logger.error('Revocation proxy error', error, { duration: Date.now() - startTime });
+    res.status(503).json({
+      error: 'temporarily_unavailable',
+      error_description: 'Service temporarily unavailable'
+    });
+  }
+});
+
 // OAuth callback endpoint (proxy to Cloud Functions)
 app.get('/callback', async (req, res) => {
   const startTime = Date.now();
@@ -471,6 +516,7 @@ async function main() {
           registration: `http://localhost:${port}/register`,
           authorization: `http://localhost:${port}/authorize`,
           token: `http://localhost:${port}/token`,
+          revoke: `http://localhost:${port}/revoke`,
           callback: `http://localhost:${port}/callback`,
           health: `http://localhost:${port}/health`
         },

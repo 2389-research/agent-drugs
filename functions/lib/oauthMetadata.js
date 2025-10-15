@@ -14,6 +14,7 @@ async function getOAuthMetadataHandler() {
         authorization_endpoint: `${functionsBaseUrl}/oauthAuthorize`,
         token_endpoint: `${functionsBaseUrl}/oauthToken`,
         registration_endpoint: `${functionsBaseUrl}/oauthRegister`,
+        revocation_endpoint: `${functionsBaseUrl}/oauthRevoke`,
         scopes_supported: ['drugs:read', 'drugs:write'],
         response_types_supported: ['code'],
         grant_types_supported: ['authorization_code'],

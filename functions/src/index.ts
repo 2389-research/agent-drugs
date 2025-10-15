@@ -9,3 +9,4 @@ export { oauthMetadata, oauthAuthorize } from './oauthMetadata';
 export { oauthToken } from './oauthToken';
 export { oauthCallback } from './oauthCallback';
 export { oauthRegister } from './oauthRegister';
+export { oauthRevoke } from './oauthRevoke';
