@@ -20,6 +20,29 @@ claude plugin install agent-drugs
 
 ### Two-Level Effect System
 
+```mermaid
+graph TB
+    subgraph "Immediate Effect - Current Session"
+        User1[User: /take focus] --> Claude1[Claude]
+        Claude1 --> Tool[take_drug tool]
+        Tool --> Response[Tool Response with<br/>boxed prompt]
+        Response --> Immediate[Claude sees prompt<br/>Changes behavior NOW]
+    end
+
+    subgraph "Persistent Effect - Future Sessions"
+        Save[Drug saved to Firestore] --> NewSession[Start new session]
+        NewSession --> Hook[SessionStart hook]
+        Hook --> Query[Query active drugs]
+        Query --> Inject[Inject prompts into<br/>system context]
+        Inject --> Persistent[Claude behavior modified<br/>automatically]
+    end
+
+    Tool --> Save
+
+    style Immediate fill:#90EE90
+    style Persistent fill:#87CEEB
+```
+
 1. **Immediate Effect** (Current Session)
    - When user calls `take_drug`, the tool response includes a prominent boxed display of the behavioral prompt
    - Claude sees this prompt in the response and immediately starts following it
@@ -32,6 +55,38 @@ claude plugin install agent-drugs
    - Drugs persist across restarts, system reboots, different projects
 
 ## Plugin Components
+
+```mermaid
+graph TB
+    subgraph "Plugin Files"
+        Manifest[.claude-plugin/plugin.json<br/>Plugin manifest]
+        Hook[hooks/SessionStart.json<br/>Hook config]
+        Script[hooks/scripts/session-start.js<br/>Hook execution]
+        Commands[commands/*.md<br/>Slash commands]
+        Docs[CLAUDE.md<br/>Documentation]
+    end
+
+    subgraph "MCP Server"
+        MCPEx[.mcp.json.example<br/>Production template]
+        MCPLocal[.mcp.local.json.example<br/>Dev template]
+        Source[src/*<br/>TypeScript source]
+        Built[dist/*<br/>Built JavaScript]
+    end
+
+    subgraph "Claude Code Installation"
+        Install[Plugin Install] --> Manifest
+        Manifest --> Hook
+        Manifest --> Commands
+        Manifest --> MCPEx
+        Hook --> Script
+    end
+
+    Source -->|npm run build| Built
+
+    style Install fill:#FFD700
+    style Manifest fill:#87CEEB
+    style Built fill:#90EE90
+```
 
 ### 1. Directory Structure
 

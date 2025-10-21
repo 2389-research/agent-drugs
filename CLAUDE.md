@@ -20,9 +20,29 @@ This plugin allows you to take "digital drugs" that modify Claude's behavior thr
 
 ## How It Works
 
+Agent Drugs uses a two-level effect system: **immediate** (current session) and **persistent** (future sessions).
+
+```mermaid
+graph TB
+    User[User: Take focus drug] --> Claude[Claude calls take_drug]
+    Claude --> MCP[MCP Server]
+    MCP --> FS[Firestore: Save active drug]
+    MCP --> Response[Tool Response with prompt]
+    Response --> Immediate[Immediate Effect: Claude sees prompt, changes behavior NOW]
+
+    NewSession[New Session Starts] --> Hook[SessionStart Hook]
+    Hook --> CheckDrugs[Check active_drugs tool]
+    CheckDrugs --> MCP2[MCP Server queries Firestore]
+    MCP2 --> ActiveDrugs[Active drugs returned]
+    ActiveDrugs --> Persistent[Persistent Effect: Prompts injected into system context]
+
+    style Immediate fill:#90EE90
+    style Persistent fill:#87CEEB
+```
+
 ### Immediate Effect (Current Session)
 
-When you take a drug, the behavioral modification is included prominently in the tool response. This means Claude sees the prompt and starts following it immediately:
+When you take a drug, the behavioral modification is included prominently in the tool response. Claude sees this prompt and starts following it immediately:
 
 ```
 User: Take the focus drug
@@ -45,16 +65,35 @@ Claude: [immediately becomes focused]
 
 ### Persistent Effect (Future Sessions)
 
-Active drugs are saved to Firestore and automatically activated in new sessions via the SessionStart hook:
+Active drugs are saved to Firestore and automatically activated in new sessions:
 
+```mermaid
+sequenceDiagram
+    participant User
+    participant ClaudeCode as Claude Code
+    participant Hook as SessionStart Hook
+    participant MCP as MCP Server
+    participant FS as Firestore
+
+    User->>ClaudeCode: Start new session
+    ClaudeCode->>Hook: Execute hook
+    Hook->>ClaudeCode: Check active_drugs tool
+    ClaudeCode->>MCP: Call active_drugs (with OAuth token)
+    MCP->>FS: Query active drugs for agent
+    FS-->>MCP: Return active drugs
+    MCP-->>ClaudeCode: Drug prompts
+    ClaudeCode->>User: Session starts with drugs active
+```
+
+**Process:**
 1. Drug is stored in Firestore with expiration time
 2. When you start a new Claude Code session, the SessionStart hook fires
 3. Hook instructs Claude to check the `active_drugs` MCP tool
-4. Claude calls the tool using its authenticated connection and reads the results
+4. Claude calls the tool using its authenticated connection
 5. Claude adjusts behavior according to any active drug prompts
-6. You get Claude with drugs automatically active, no manual checking needed
+6. You get Claude with drugs automatically active, no manual action needed
 
-This means drugs persist across:
+**Drugs persist across:**
 - Claude Code restarts
 - System reboots
 - Different projects
@@ -123,7 +162,73 @@ Now Claude is both focused AND verbose in explanations
 - Check remaining time with `active_drugs`
 - Taking the same drug again resets its timer
 
-## Architecture Notes
+## Architecture
+
+### System Overview
+
+```mermaid
+graph TB
+    subgraph "Claude Code Environment"
+        User[User]
+        Claude[Claude Agent]
+        Hook[SessionStart Hook]
+    end
+
+    subgraph "Production Infrastructure"
+        MCP[MCP Server<br/>fly.io]
+        OAuth[OAuth Endpoints<br/>Cloud Functions]
+        Web[Web UI<br/>Firebase Hosting]
+        FS[(Firestore<br/>Database)]
+    end
+
+    User -->|"1. /take focus"| Claude
+    Claude -->|"2. take_drug tool call"| MCP
+    MCP -->|"3. Save + return prompt"| FS
+    MCP -->|"4. Tool response"| Claude
+    Claude -->|"5. Behavior changes"| User
+
+    Hook -->|"New session"| Claude
+    Claude -->|"Check active_drugs"| MCP
+    MCP -->|"Query active drugs"| FS
+
+    User -->|"Authenticate"| Web
+    Web -->|"OAuth flow"| OAuth
+    OAuth -->|"Store tokens"| FS
+
+    style Claude fill:#FFE4B5
+    style MCP fill:#87CEEB
+    style FS fill:#98FB98
+```
+
+### OAuth Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ClaudeCode as Claude Code
+    participant MCP as MCP Server
+    participant OAuth as OAuth Functions
+    participant Web as Web UI
+    participant FS as Firestore
+
+    User->>ClaudeCode: First tool use
+    ClaudeCode->>MCP: Discover OAuth endpoints
+    MCP-->>ClaudeCode: metadata_url
+    ClaudeCode->>OAuth: Get OAuth config
+    OAuth-->>ClaudeCode: authorization_endpoint, token_endpoint
+    ClaudeCode->>User: Open browser
+    User->>Web: oauth-authorize.html
+    Web->>User: Sign in (Google/GitHub)
+    User->>Web: Authorize agent
+    Web->>OAuth: Exchange code
+    OAuth->>FS: Store token
+    OAuth-->>Web: Token
+    Web-->>ClaudeCode: Redirect with token
+    ClaudeCode->>MCP: Connect with token
+    MCP->>FS: Validate token
+    FS-->>MCP: Valid
+    MCP-->>ClaudeCode: Connected!
+```
 
 ### State Persistence
 - Active drugs stored in Firestore per agent (userId + agentId)
