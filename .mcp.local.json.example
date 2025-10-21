@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "agent-drugs": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp",
+      "transport": "http"
+    }
+  }
+}

@@ -88,15 +88,61 @@ Visit https://agent-drugs.web.app to:
 
 ## How It Works
 
+```mermaid
+graph LR
+    User[User] -->|/take focus| Claude[Claude]
+    Claude -->|take_drug| MCP[MCP Server]
+    MCP -->|save| FS[(Firestore)]
+    MCP -->|prompt| Claude
+    Claude -->|modified behavior| User
+
+    NewSession[New Session] -->|SessionStart hook| Claude2[Claude]
+    Claude2 -->|active_drugs| MCP2[MCP Server]
+    MCP2 -->|query| FS
+    MCP2 -->|prompts| Claude2
+    Claude2 -->|drugs active| User2[User]
+
+    style MCP fill:#87CEEB
+    style MCP2 fill:#87CEEB
+    style FS fill:#98FB98
+```
+
 **Immediate Effect:** Drugs activate instantly in your current session via prompt injection in the tool response.
 
 **Persistent Effect:** Active drugs are saved to Firestore and automatically reactivated in new sessions via the SessionStart hook.
 
-**Architecture:**
-- **Web UI** (Firebase Hosting): https://agent-drugs.web.app
-- **OAuth Endpoints** (Cloud Functions): OAuth 2.1 with PKCE
-- **MCP Server** (Fly.io): Streamable HTTP transport (MCP 2025-03-26), validates bearer tokens
-- **Database** (Firestore): Stores agents, drugs, usage events
+### Architecture Components
+
+```mermaid
+graph TB
+    subgraph "User Environment"
+        CC[Claude Code]
+    end
+
+    subgraph "Production Services"
+        MCP[MCP Server<br/>fly.io<br/>:443/mcp]
+        OAuth[OAuth Functions<br/>Cloud Functions]
+        Web[Web UI<br/>Firebase Hosting]
+        FS[(Firestore)]
+    end
+
+    CC <-->|OAuth 2.1| OAuth
+    CC <-->|HTTP/SSE| MCP
+    MCP <-->|Admin SDK| FS
+    OAuth <-->|Admin SDK| FS
+    Web <-->|Client SDK| FS
+
+    style MCP fill:#87CEEB
+    style OAuth fill:#FFD700
+    style Web fill:#FF6B6B
+    style FS fill:#98FB98
+```
+
+**Components:**
+- **Web UI** (Firebase Hosting): https://agent-drugs.web.app - User authentication and management
+- **OAuth Endpoints** (Cloud Functions): OAuth 2.1 with PKCE - Token generation and validation
+- **MCP Server** (Fly.io): Streamable HTTP transport (MCP 2025-03-26) - Tool execution
+- **Database** (Firestore): Stores agents, drugs, active drugs, usage events
 
 See [CLAUDE.md](CLAUDE.md) for detailed plugin documentation.
 
@@ -108,6 +154,9 @@ See [CLAUDE.md](CLAUDE.md) for detailed plugin documentation.
 # Install dependencies
 npm install
 
+# Setup local MCP configuration (for plugin development)
+npm run setup:dev
+
 # Build
 npm run build
 
@@ -117,8 +166,66 @@ export FIREBASE_PROJECT_ID="agent-drugs"
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 npm run dev:stdio
 
-# Run HTTP version (for production-like testing)
+# Run HTTP version (for production-like testing on localhost:3000)
 npm run dev:http
+```
+
+### MCP Configuration for Development
+
+```mermaid
+graph TB
+    subgraph "Project Files (committed)"
+        Ex1[.mcp.json.example<br/>Production template]
+        Ex2[.mcp.local.json.example<br/>Localhost template]
+    end
+
+    subgraph "Local Development (gitignored)"
+        Local[.mcp.local.json<br/>Active config]
+    end
+
+    subgraph "Claude Code"
+        CC[Auto-discovers<br/>.mcp.local.json]
+    end
+
+    Ex2 -->|npm run setup:dev| Local
+    Local -->|Auto-discovered| CC
+    CC -->|Connects to| Dev[localhost:3000]
+
+    style Local fill:#90EE90
+    style Dev fill:#87CEEB
+```
+
+**Setup for Plugin Development:**
+
+The repository includes example MCP configuration files:
+- `.mcp.json.example` - Production config (points to agent-drugs-mcp.fly.dev)
+- `.mcp.local.json.example` - Development config (points to localhost:3000)
+
+To develop against a local server:
+1. Run `npm run setup:dev` to create `.mcp.local.json`
+2. Start local server: `npm run dev:http`
+3. Claude Code will use your local server for testing
+
+The `.mcp.local.json` file is gitignored and won't be committed.
+
+**Why example files?** Having `.mcp.json` in the project root causes Claude Code to auto-discover it, creating false tool availability during development. Example files prevent this while still documenting the correct format.
+
+**Configuration Flow:**
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant NPM as npm run setup:dev
+    participant File as .mcp.local.json
+    participant CC as Claude Code
+    participant Server as localhost:3000
+
+    Dev->>NPM: Run setup
+    NPM->>File: Copy from .example
+    Dev->>Server: npm run dev:http
+    Server-->>Server: Start on :3000
+    CC->>File: Auto-discover config
+    CC->>Server: Connect to MCP
+    Server-->>CC: Connected
 ```
 
 ### Testing

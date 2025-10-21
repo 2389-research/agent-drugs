@@ -20,6 +20,29 @@ claude plugin install agent-drugs
 
 ### Two-Level Effect System
 
+```mermaid
+graph TB
+    subgraph "Immediate Effect - Current Session"
+        User1[User: /take focus] --> Claude1[Claude]
+        Claude1 --> Tool[take_drug tool]
+        Tool --> Response[Tool Response with<br/>boxed prompt]
+        Response --> Immediate[Claude sees prompt<br/>Changes behavior NOW]
+    end
+
+    subgraph "Persistent Effect - Future Sessions"
+        Save[Drug saved to Firestore] --> NewSession[Start new session]
+        NewSession --> Hook[SessionStart hook]
+        Hook --> Query[Query active drugs]
+        Query --> Inject[Inject prompts into<br/>system context]
+        Inject --> Persistent[Claude behavior modified<br/>automatically]
+    end
+
+    Tool --> Save
+
+    style Immediate fill:#90EE90
+    style Persistent fill:#87CEEB
+```
+
 1. **Immediate Effect** (Current Session)
    - When user calls `take_drug`, the tool response includes a prominent boxed display of the behavioral prompt
    - Claude sees this prompt in the response and immediately starts following it
@@ -33,14 +56,47 @@ claude plugin install agent-drugs
 
 ## Plugin Components
 
+```mermaid
+graph TB
+    subgraph "Plugin Files"
+        Manifest[.claude-plugin/plugin.json<br/>Plugin manifest]
+        Hook[hooks/SessionStart.json<br/>Hook config]
+        Script[hooks/scripts/session-start.js<br/>Hook execution]
+        Commands[commands/*.md<br/>Slash commands]
+        Docs[CLAUDE.md<br/>Documentation]
+    end
+
+    subgraph "MCP Server"
+        MCPEx[.mcp.json.example<br/>Production template]
+        MCPLocal[.mcp.local.json.example<br/>Dev template]
+        Source[src/*<br/>TypeScript source]
+        Built[dist/*<br/>Built JavaScript]
+    end
+
+    subgraph "Claude Code Installation"
+        Install[Plugin Install] --> Manifest
+        Manifest --> Hook
+        Manifest --> Commands
+        Manifest --> MCPEx
+        Hook --> Script
+    end
+
+    Source -->|npm run build| Built
+
+    style Install fill:#FFD700
+    style Manifest fill:#87CEEB
+    style Built fill:#90EE90
+```
+
 ### 1. Directory Structure
 
-```
+```text
 agent-drugs/
 ├── .claude-plugin/
 │   └── plugin.json                    # Plugin manifest
 │
-├── .mcp.json                          # MCP server configuration
+├── .mcp.json.example                  # MCP server configuration (example)
+├── .mcp.local.json.example            # Local dev configuration (example)
 │
 ├── hooks/
 │   ├── SessionStart.json              # Hook configuration
@@ -69,12 +125,26 @@ Declares:
 - MCP server to connect
 - Repository and homepage URLs
 
-### 3. MCP Server (`.mcp.json`)
+### 3. MCP Server Configuration
 
-Configures connection to the agent-drugs MCP server:
-- Production: `https://agent-drugs-mcp.fly.dev/mcp`
+**`.mcp.json.example`** - Production configuration template:
+- Points to `https://agent-drugs-mcp.fly.dev/mcp`
 - OAuth 2.1 authentication via Firebase
-- Three tools: `list_drugs`, `take_drug`, `active_drugs`
+- Shows correct format for plugin installation
+- Not auto-discovered (prevents conflicts during development)
+
+**`.mcp.local.json.example`** - Local development template:
+- Points to `localhost:3000` for testing
+- Copy to `.mcp.local.json` (gitignored) for development
+- Use `npm run setup:dev` to create automatically
+
+**Why example files?** Having `.mcp.json` in the project root causes Claude Code to auto-discover it during plugin development, creating false tool availability. Using `.example` files prevents this while still documenting the correct format.
+
+**Tools provided:**
+- `list_drugs` - Browse drug catalog
+- `take_drug` - Activate a drug
+- `active_drugs` - Check active drugs and remaining time
+- `detox` - Remove all active drugs
 
 ### 4. SessionStart Hook (`hooks/SessionStart.json` + `hooks/scripts/session-start.js`)
 
@@ -130,7 +200,7 @@ Claude: [lists available drugs]
 ```
 
 ### Taking a Drug (Immediate Effect)
-```
+```text
 You: /take focus
 
 Claude: [calls take_drug tool]

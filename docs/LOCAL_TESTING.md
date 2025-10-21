@@ -69,14 +69,19 @@ npm start
 
 ### Method 1: Use .mcp.local.json (Recommended)
 
-Copy the template from the project root:
+Create a local MCP configuration from the example:
 
 ```bash
-# .mcp.local.json is already created with the correct local configuration
-cat .mcp.local.json
+# Copy the example to create your local config
+npm run setup:dev
+
+# Or manually:
+cp .mcp.local.json.example .mcp.local.json
 ```
 
-This file is configured to use the local OAuth metadata endpoint, which proxies all OAuth operations to production while serving the MCP server locally.
+This creates `.mcp.local.json` in your project root, which Claude Code will auto-discover. The file points to `localhost:3000` without OAuth (for simpler local testing).
+
+**Note:** The `.mcp.local.json` file is gitignored and won't be committed. The repository includes `.mcp.local.json.example` as a template for developers.
 
 ### Method 2: Add to Claude Code config
 
@@ -117,6 +122,7 @@ Add this to your Claude Code MCP config (`~/.config/claude-code/config.json`):
 {
   "mcpServers": {
     "agent-drugs-local": {
+      "type": "http",
       "url": "http://localhost:3000/mcp",
       "headers": {
         "Authorization": "Bearer agdrug_xxx..."
@@ -147,69 +153,90 @@ Get a token by running `./test-oauth-flow.sh` or visiting https://agent-drugs.we
 
 ## Architecture During Local Testing
 
+### Setup Overview
+
+```mermaid
+graph TB
+    subgraph "Your Machine"
+        Dev[Developer]
+        CC[Claude Code]
+        Local[Local MCP Server<br/>localhost:3000]
+        Config[.mcp.local.json]
+    end
+
+    subgraph "Production Services"
+        OAuth[OAuth Functions]
+        Web[Web UI]
+        FS[(Firestore)]
+    end
+
+    Dev -->|npm run setup:dev| Config
+    Dev -->|npm run dev:http| Local
+    CC -->|Auto-discover| Config
+    CC -->|Connect| Local
+
+    Local -->|Proxy OAuth| OAuth
+    Local -->|Query/Save| FS
+    OAuth -->|Manage tokens| FS
+
+    style Local fill:#90EE90
+    style Config fill:#FFE4B5
+    style FS fill:#98FB98
 ```
-┌─────────────┐
-│ Claude Code │ (your machine)
-└──────┬──────┘
-       │
-       │ 1. Discover OAuth (local metadata endpoint)
-       ├──────────────────────────────────┐
-       │                                  │
-       │                          ┌───────▼──────────────────┐
-       │                          │ Local MCP Server         │
-       │                          │ localhost:3000           │
-       │                          │  /.well-known/oauth-...  │
-       │                          │  /register (proxy)       │
-       │                          │  /authorize (proxy)      │
-       │                          │  /token (proxy)          │
-       │                          │  /callback (proxy)       │
-       │                          │  /mcp                    │
-       │                          └─────┬────────────────────┘
-       │                                │
-       │ 2. OAuth operations proxied    │ Proxies to
-       │    (register, authorize, etc)  │ production
-       │                                ▼
-       │                          ┌──────────────────┐
-       │                          │ Cloud Functions  │
-       │                          │ (Production)     │
-       │                          │  - oauthRegister │
-       │                          │  - oauthAuthorize│
-       │                          │  - oauthToken    │
-       │                          │  - oauthCallback │
-       │                          └────┬─────────────┘
-       │                               │
-       │ 3. User authorizes            │ Redirects to
-       │                               ▼
-       │                          ┌──────────────────┐
-       │                          │ Firebase Hosting │
-       │                          │ (Production)     │
-       │                          │  - oauth-auth... │
-       │                          └──────────────────┘
-       │
-       │ 4. Connect with token
-       ├──────────────────────────────────┐
-       │                                  │
-       │                          ┌───────▼──────────┐
-       │                          │ Local MCP Server │
-       │                          │ localhost:3000   │
-       │                          │  /mcp            │
-       │                          └──────┬───────────┘
-       │                                 │
-       │                                 │ Validates token
-       │                                 ▼
-       │                          ┌──────────────────┐
-       │                          │ Firestore        │
-       │                          │ (Production)     │
-       │                          │  - agents        │
-       │                          │  - drugs         │
-       │                          │  - active_drugs  │
-       │                          │  - oauth_clients │
-       │                          └──────────────────┘
+
+### OAuth Flow with Local Server
+
+```mermaid
+sequenceDiagram
+    participant CC as Claude Code
+    participant Local as localhost:3000
+    participant OAuth as Production OAuth
+    participant Web as Production Web UI
+    participant FS as Firestore
+
+    CC->>Local: Discover OAuth endpoints
+    Local-->>CC: .well-known/oauth-authorization-server
+
+    CC->>Local: GET /register
+    Local->>OAuth: Proxy to production
+    OAuth->>FS: Register client
+    OAuth-->>Local: Client credentials
+    Local-->>CC: Client credentials
+
+    CC->>Local: GET /authorize
+    Local->>OAuth: Proxy to production
+    OAuth->>Web: Redirect to auth page
+    Web->>User: Sign in (Google/GitHub)
+    User->>Web: Authorize
+    Web->>OAuth: Exchange code
+    OAuth->>FS: Store token
+    OAuth-->>CC: Redirect with token
+
+    CC->>Local: POST /mcp (with token)
+    Local->>FS: Validate token
+    FS-->>Local: Valid
+    Local-->>CC: Connected
+```
+
+### Development Testing Flow
+
+```mermaid
+graph LR
+    Setup[npm run setup:dev] --> Start[npm run dev:http]
+    Start --> Claude[Open Claude Code]
+    Claude --> Discover[Auto-discover MCP]
+    Discover --> Test[Test tools]
+    Test --> Verify[Check Firestore]
+    Verify --> Setup
+
+    style Setup fill:#FFD700
+    style Start fill:#90EE90
+    style Test fill:#87CEEB
 ```
 
 **Key Points:**
 - Local metadata endpoint returns `localhost:3000` URLs
-- All OAuth operations are proxied to production Cloud Functions
+- OAuth operations are proxied to production Cloud Functions
 - MCP client sees only local endpoints during discovery
 - Authentication and data storage happen in production
 - Only the MCP protocol handler runs locally

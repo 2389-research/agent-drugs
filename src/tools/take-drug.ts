@@ -1,7 +1,7 @@
 import { FirebaseClient } from '../firebase-client';
 import { StateManager } from '../state-manager';
 import { ToolResult } from './list-drugs';
-import { logger } from '../logger.js';
+import { logger } from '../logger';
 
 export interface TakeDrugArgs {
   name: string;

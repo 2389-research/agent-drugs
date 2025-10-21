@@ -8,6 +8,7 @@ import { StateManager } from './state-manager.js';
 import { listDrugsTool } from './tools/list-drugs.js';
 import { takeDrugTool } from './tools/take-drug.js';
 import { activeDrugsTool } from './tools/active-drugs.js';
+import { detoxTool } from './tools/detox.js';
 import { logger } from './logger.js';
 
 const app = express();
@@ -28,29 +29,53 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'agent-drugs-mcp' });
 });
 
-// OAuth metadata endpoint - ONLY for local development
-// In production, Claude Code should use the metadata_url from .mcp.json
-// which points directly to Cloud Functions
-if (!process.env.FLY_APP_NAME && process.env.NODE_ENV !== 'production') {
-  app.get('/.well-known/oauth-authorization-server', (req, res) => {
-    const startTime = Date.now();
-    logger.oauth('Metadata discovery request (local dev)');
+// OAuth metadata endpoint
+app.get('/.well-known/oauth-authorization-server', async (req, res) => {
+  const startTime = Date.now();
+  logger.oauth('Metadata discovery request');
 
-    const metadata = {
-      issuer: `http://localhost:${port}`,
-      authorization_endpoint: `http://localhost:${port}/authorize`,
-      token_endpoint: `http://localhost:${port}/token`,
-      registration_endpoint: `http://localhost:${port}/register`,
-      scopes_supported: ['drugs:read', 'drugs:write'],
-      response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code'],
-      code_challenge_methods_supported: ['S256'],
+  try {
+    // Fetch metadata from upstream Cloud Functions endpoint
+    const upstream = 'https://us-central1-agent-drugs.cloudfunctions.net/oauthMetadata';
+    const response = await fetch(upstream);
+
+    // Honor upstream status - if upstream is down, don't claim we're OK
+    if (!response.ok) {
+      logger.warn('Upstream metadata not OK', { status: response.status });
+      res.status(response.status).json({
+        error: 'temporarily_unavailable',
+        error_description: 'OAuth metadata temporarily unavailable'
+      });
+      logger.response('GET', '/.well-known/oauth-authorization-server', response.status, Date.now() - startTime);
+      return;
+    }
+
+    const metadata = await response.json();
+
+    // Rewrite metadata to use local endpoints for dev testing
+    const base = `${req.protocol}://${req.get('host')}`;
+    const rewritten = {
+      ...metadata,
+      issuer: base,
+      authorization_endpoint: `${base}/authorize`,
+      token_endpoint: `${base}/token`,
+      revocation_endpoint: `${base}/revoke`,
+      registration_endpoint: `${base}/register`,
     };
 
-    res.json(metadata);
+    logger.oauth('Metadata fetched and rewritten to local endpoints', {
+      duration: Date.now() - startTime
+    });
+    res.status(200).json(rewritten);
     logger.response('GET', '/.well-known/oauth-authorization-server', 200, Date.now() - startTime);
-  });
-}
+  } catch (error) {
+    logger.error('Metadata fetch error', error, { duration: Date.now() - startTime });
+    res.status(503).json({
+      error: 'temporarily_unavailable',
+      error_description: 'OAuth metadata temporarily unavailable'
+    });
+  }
+});
 
 // OAuth client registration endpoint (proxy to Cloud Functions)
 app.post('/register', async (req, res) => {
@@ -352,7 +377,7 @@ app.post('/mcp', async (req, res) => {
           message: 'Authentication required',
           data: {
             authType: 'oauth',
-            oauthMetadataUrl: 'https://us-central1-agent-drugs.cloudfunctions.net/oauthMetadata'
+            oauthMetadataUrl: `${req.protocol}://${req.get('host')}/.well-known/oauth-authorization-server`
           }
         },
         id: jsonrpcRequest.id
@@ -413,6 +438,14 @@ app.post('/mcp', async (req, res) => {
             properties: {},
           },
         },
+        {
+          name: 'detox',
+          description: 'Remove all active drugs and return to standard behavior',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+        },
       ];
 
       res.status(200).json({
@@ -442,6 +475,10 @@ app.post('/mcp', async (req, res) => {
 
         case 'active_drugs':
           result = await activeDrugsTool(stateManager);
+          break;
+
+        case 'detox':
+          result = await detoxTool(stateManager);
           break;
 
         default:

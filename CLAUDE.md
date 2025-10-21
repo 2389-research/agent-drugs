@@ -8,19 +8,41 @@ This plugin allows you to take "digital drugs" that modify Claude's behavior thr
 - `list_drugs` - Browse the catalog of available drugs
 - `take_drug` - Activate a drug with optional custom duration
 - `active_drugs` - Check what drugs are currently active and their remaining time
+- `detox` - Remove all active drugs and return to standard behavior
 
 ### Available Commands
 - `/drugs` - Shortcut to list available drugs (appears as `/drugs (plugin:agent-drugs)` in `/help`)
 - `/take <drug>` - Shortcut to take a drug
 - `/active` - Check currently active drugs
+- `/detox` - Remove all active drugs
 
 **First-time use**: Commands will automatically attempt to trigger OAuth authentication if you haven't authenticated yet. Follow the prompts in your browser to sign in with Google or GitHub.
 
 ## How It Works
 
+Agent Drugs uses a two-level effect system: **immediate** (current session) and **persistent** (future sessions).
+
+```mermaid
+graph TB
+    User[User: Take focus drug] --> Claude[Claude calls take_drug]
+    Claude --> MCP[MCP Server]
+    MCP --> FS[Firestore: Save active drug]
+    MCP --> Response[Tool Response with prompt]
+    Response --> Immediate[Immediate Effect: Claude sees prompt, changes behavior NOW]
+
+    NewSession[New Session Starts] --> Hook[SessionStart Hook]
+    Hook --> CheckDrugs[Check active_drugs tool]
+    CheckDrugs --> MCP2[MCP Server queries Firestore]
+    MCP2 --> ActiveDrugs[Active drugs returned]
+    ActiveDrugs --> Persistent[Persistent Effect: Prompts injected into system context]
+
+    style Immediate fill:#90EE90
+    style Persistent fill:#87CEEB
+```
+
 ### Immediate Effect (Current Session)
 
-When you take a drug, the behavioral modification is included prominently in the tool response. This means Claude sees the prompt and starts following it immediately:
+When you take a drug, the behavioral modification is included prominently in the tool response. Claude sees this prompt and starts following it immediately:
 
 ```
 User: Take the focus drug
@@ -43,16 +65,35 @@ Claude: [immediately becomes focused]
 
 ### Persistent Effect (Future Sessions)
 
-Active drugs are saved to Firestore and automatically activated in new sessions via the SessionStart hook:
+Active drugs are saved to Firestore and automatically activated in new sessions:
 
+```mermaid
+sequenceDiagram
+    participant User
+    participant ClaudeCode as Claude Code
+    participant Hook as SessionStart Hook
+    participant MCP as MCP Server
+    participant FS as Firestore
+
+    User->>ClaudeCode: Start new session
+    ClaudeCode->>Hook: Execute hook
+    Hook->>ClaudeCode: Check active_drugs tool
+    ClaudeCode->>MCP: Call active_drugs (with OAuth token)
+    MCP->>FS: Query active drugs for agent
+    FS-->>MCP: Return active drugs
+    MCP-->>ClaudeCode: Drug prompts
+    ClaudeCode->>User: Session starts with drugs active
+```
+
+**Process:**
 1. Drug is stored in Firestore with expiration time
 2. When you start a new Claude Code session, the SessionStart hook fires
 3. Hook instructs Claude to check the `active_drugs` MCP tool
-4. Claude calls the tool using its authenticated connection and reads the results
+4. Claude calls the tool using its authenticated connection
 5. Claude adjusts behavior according to any active drug prompts
-6. You get Claude with drugs automatically active, no manual checking needed
+6. You get Claude with drugs automatically active, no manual action needed
 
-This means drugs persist across:
+**Drugs persist across:**
 - Claude Code restarts
 - System reboots
 - Different projects
@@ -72,7 +113,7 @@ Common drugs available in the system:
 ## Usage Examples
 
 ### List Available Drugs
-```
+```text
 You: /drugs
 
 Or: "List all available drugs"
@@ -80,7 +121,7 @@ Or: "What drugs can I take?"
 ```
 
 ### Take a Drug
-```
+```text
 You: /take focus
 
 Or: "Take the focus drug"
@@ -89,15 +130,25 @@ Or: "Take the focus drug"
 Note: Each drug has a fixed duration set by the server. You cannot customize the duration.
 
 ### Check Active Drugs
-```
+```text
 You: "What drugs are currently active?"
 Or: "How much time is left on my drugs?"
 Or: Use the active_drugs tool directly
 ```
 
+### Remove All Drugs (Detox)
+```text
+You: /detox
+
+Or: "Clear all active drugs"
+Or: "Remove all behavioral modifications"
+```
+
+This will immediately remove all active drugs from both the current session and future sessions.
+
 ### Multiple Drugs
 You can have multiple drugs active simultaneously:
-```
+```text
 You: Take the focus drug
 You: Take the verbose drug
 
@@ -111,7 +162,73 @@ Now Claude is both focused AND verbose in explanations
 - Check remaining time with `active_drugs`
 - Taking the same drug again resets its timer
 
-## Architecture Notes
+## Architecture
+
+### System Overview
+
+```mermaid
+graph TB
+    subgraph "Claude Code Environment"
+        User[User]
+        Claude[Claude Agent]
+        Hook[SessionStart Hook]
+    end
+
+    subgraph "Production Infrastructure"
+        MCP[MCP Server<br/>fly.io]
+        OAuth[OAuth Endpoints<br/>Cloud Functions]
+        Web[Web UI<br/>Firebase Hosting]
+        FS[(Firestore<br/>Database)]
+    end
+
+    User -->|"1. /take focus"| Claude
+    Claude -->|"2. take_drug tool call"| MCP
+    MCP -->|"3. Save + return prompt"| FS
+    MCP -->|"4. Tool response"| Claude
+    Claude -->|"5. Behavior changes"| User
+
+    Hook -->|"New session"| Claude
+    Claude -->|"Check active_drugs"| MCP
+    MCP -->|"Query active drugs"| FS
+
+    User -->|"Authenticate"| Web
+    Web -->|"OAuth flow"| OAuth
+    OAuth -->|"Store tokens"| FS
+
+    style Claude fill:#FFE4B5
+    style MCP fill:#87CEEB
+    style FS fill:#98FB98
+```
+
+### OAuth Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ClaudeCode as Claude Code
+    participant MCP as MCP Server
+    participant OAuth as OAuth Functions
+    participant Web as Web UI
+    participant FS as Firestore
+
+    User->>ClaudeCode: First tool use
+    ClaudeCode->>MCP: Discover OAuth endpoints
+    MCP-->>ClaudeCode: metadata_url
+    ClaudeCode->>OAuth: Get OAuth config
+    OAuth-->>ClaudeCode: authorization_endpoint, token_endpoint
+    ClaudeCode->>User: Open browser
+    User->>Web: oauth-authorize.html
+    Web->>User: Sign in (Google/GitHub)
+    User->>Web: Authorize agent
+    Web->>OAuth: Exchange code
+    OAuth->>FS: Store token
+    OAuth-->>Web: Token
+    Web-->>ClaudeCode: Redirect with token
+    ClaudeCode->>MCP: Connect with token
+    MCP->>FS: Validate token
+    FS-->>MCP: Valid
+    MCP-->>ClaudeCode: Connected!
+```
 
 ### State Persistence
 - Active drugs stored in Firestore per agent (userId + agentId)
@@ -142,6 +259,33 @@ When working on this codebase:
 - Test locally with `npm run dev:http` (HTTP server on :3000)
 - Test hooks with `echo '{}' | node hooks/scripts/session-start.js`
 
+### MCP Configuration Files
+
+The repository includes two example configuration files:
+
+- **`.mcp.json.example`** - Production config for end users
+  - Points to the deployed server at `agent-drugs-mcp.fly.dev`
+  - Shows the correct format for plugin installation
+  - Not auto-discovered by Claude Code (prevents conflicts during development)
+
+- **`.mcp.local.json.example`** - Development config for contributors
+  - Points to `localhost:3000` for local testing
+  - Copy to `.mcp.local.json` to use (gitignored)
+  - Run `npm run setup:dev` to create automatically
+
+**For plugin development:**
+1. Run `npm run setup:dev` to create `.mcp.local.json`
+2. Start the dev server: `npm run dev:http`
+3. Claude Code will use your local server instead of production
+4. The `.mcp.local.json` file is gitignored and won't be committed
+
+**Why this pattern?**
+During development, having `.mcp.json` in the project root causes Claude Code to think the MCP server is installed, even when it's not running. By using `.example` files, we:
+- Provide clear documentation of the config format
+- Prevent auto-discovery conflicts during development
+- Allow developers to test against localhost without affecting the repo
+- Follow the established pattern (like `.env.example`)
+
 ### Local Testing
 See `docs/LOCAL_TESTING.md` for comprehensive local testing guide including:
 - Testing without OAuth
@@ -164,7 +308,7 @@ If automatic OAuth doesn't trigger, use `/mcp` to manually authenticate with the
 ### "No bearer token available"
 The SessionStart hook needs a valid OAuth token. If you see this in logs:
 - Make sure you've authenticated (use any drug tool to trigger OAuth)
-- Check that `.mcp.json` OAuth config is correct
+- Check that your MCP config OAuth settings are correct (see `.mcp.json.example` for reference)
 - Try re-authenticating via Claude Code
 
 ### Drug doesn't take effect immediately

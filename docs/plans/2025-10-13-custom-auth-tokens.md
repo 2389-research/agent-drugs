@@ -1148,7 +1148,7 @@ No commit needed (deployment only)
 
 **Step 2: Configure MCP server with token file**
 
-Update `~/.claude/config.json` or `.mcp.json`:
+Update `~/.claude/config.json` (or create `.mcp.local.json` in the project root):
 ```json
 {
   "mcpServers": {
