@@ -15,8 +15,8 @@
     "dev:stdio": "ts-node src/index.ts",
     "dev:http": "ts-node src/http-server.ts",
     "start": "node dist/http-server.js",
-    "setup:dev": "cp .mcp.local.json.example .mcp.local.json && echo '✓ Created .mcp.local.json for local development'",
-    "setup:check": "test -f .mcp.local.json && echo '✓ Dev config exists' || echo '✗ Run: npm run setup:dev'"
+    "setup:dev": "node scripts/setup-dev.js",
+    "setup:check": "node scripts/setup-check.js"
   },
   "keywords": [
     "claude-code",

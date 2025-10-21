@@ -35,16 +35,38 @@ app.get('/.well-known/oauth-authorization-server', async (req, res) => {
   logger.oauth('Metadata discovery request');
 
   try {
-    // Proxy to Cloud Functions metadata endpoint
-    const metadataEndpoint = 'https://us-central1-agent-drugs.cloudfunctions.net/oauthMetadata';
+    // Fetch metadata from upstream Cloud Functions endpoint
+    const upstream = 'https://us-central1-agent-drugs.cloudfunctions.net/oauthMetadata';
+    const response = await fetch(upstream);
 
-    const response = await fetch(metadataEndpoint);
+    // Honor upstream status - if upstream is down, don't claim we're OK
+    if (!response.ok) {
+      logger.warn('Upstream metadata not OK', { status: response.status });
+      res.status(response.status).json({
+        error: 'temporarily_unavailable',
+        error_description: 'OAuth metadata temporarily unavailable'
+      });
+      logger.response('GET', '/.well-known/oauth-authorization-server', response.status, Date.now() - startTime);
+      return;
+    }
+
     const metadata = await response.json();
 
-    logger.oauth('Metadata fetched successfully', {
+    // Rewrite metadata to use local endpoints for dev testing
+    const base = `${req.protocol}://${req.get('host')}`;
+    const rewritten = {
+      ...metadata,
+      issuer: base,
+      authorization_endpoint: `${base}/authorize`,
+      token_endpoint: `${base}/token`,
+      revocation_endpoint: `${base}/revoke`,
+      registration_endpoint: `${base}/register`,
+    };
+
+    logger.oauth('Metadata fetched and rewritten to local endpoints', {
       duration: Date.now() - startTime
     });
-    res.json(metadata);
+    res.status(200).json(rewritten);
     logger.response('GET', '/.well-known/oauth-authorization-server', 200, Date.now() - startTime);
   } catch (error) {
     logger.error('Metadata fetch error', error, { duration: Date.now() - startTime });
@@ -355,7 +377,7 @@ app.post('/mcp', async (req, res) => {
           message: 'Authentication required',
           data: {
             authType: 'oauth',
-            oauthMetadataUrl: 'https://us-central1-agent-drugs.cloudfunctions.net/oauthMetadata'
+            oauthMetadataUrl: `${req.protocol}://${req.get('host')}/.well-known/oauth-authorization-server`
           }
         },
         id: jsonrpcRequest.id

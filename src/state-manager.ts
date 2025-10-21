@@ -113,17 +113,25 @@ export class StateManager {
   /**
    * Clear all active drugs for this agent
    * Used by the "detox" command to remove all behavioral modifications
+   * Uses a transaction to prevent race conditions with concurrent take/detox operations
    */
   async clearAllDrugs(): Promise<void> {
     const docRef = this.db
       .collection('active_drugs')
       .doc(`${this.userId}_${this.agentId}`);
 
-    await docRef.set({
-      userId: this.userId,
-      agentId: this.agentId,
-      drugs: [],
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    // Use transaction for optimistic concurrency control
+    await this.db.runTransaction(async (transaction) => {
+      // Read the current document (ensures we have the latest state)
+      await transaction.get(docRef);
+
+      // Set the drugs array to empty
+      transaction.set(docRef, {
+        userId: this.userId,
+        agentId: this.agentId,
+        drugs: [],
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
     });
   }
 }

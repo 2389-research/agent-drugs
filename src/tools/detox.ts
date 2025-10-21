@@ -11,16 +11,12 @@ export async function detoxTool(state: StateManager): Promise<ToolResult> {
     const drugs = await state.getActiveDrugs();
     const drugNames = drugs.map(d => d.name);
 
-    // Clear all active drugs
-    await state.clearAllDrugs();
-
-    logger.info('Tool: detox succeeded', {
-      count: drugs.length,
-      drugs: drugNames,
-      elapsed: Date.now() - startTime
-    });
-
+    // If no drugs are active, return early without performing a write
     if (drugs.length === 0) {
+      logger.info('Tool: detox succeeded (no-op)', {
+        count: 0,
+        elapsed: Date.now() - startTime
+      });
       return {
         content: [{
           type: 'text',
@@ -28,6 +24,16 @@ export async function detoxTool(state: StateManager): Promise<ToolResult> {
         }],
       };
     }
+
+    // Clear all active drugs (only when there are drugs to clear)
+    await state.clearAllDrugs();
+
+    // Log count at INFO level, drug names at DEBUG level to minimize sensitive data exposure
+    logger.info('Tool: detox succeeded', {
+      count: drugs.length,
+      elapsed: Date.now() - startTime
+    });
+    logger.debug?.('Tool: detox details', { drugs: drugNames });
 
     const clearedList = drugNames.map(name => `- ${name}`).join('\n');
 
@@ -46,10 +52,11 @@ You are now operating with standard behavior. All behavioral modifications have 
     logger.error('Tool: detox error', error, {
       elapsed: Date.now() - startTime
     });
+    // Return generic error message to user, keep details in logs
     return {
       content: [{
         type: 'text',
-        text: `Error clearing drugs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        text: 'Failed to clear drugs. Please try again.',
       }],
       isError: true,
     };

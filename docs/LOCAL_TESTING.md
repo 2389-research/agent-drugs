@@ -122,6 +122,7 @@ Add this to your Claude Code MCP config (`~/.config/claude-code/config.json`):
 {
   "mcpServers": {
     "agent-drugs-local": {
+      "type": "http",
       "url": "http://localhost:3000/mcp",
       "headers": {
         "Authorization": "Bearer agdrug_xxx..."

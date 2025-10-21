@@ -5,6 +5,7 @@ import { StateManager } from '../state-manager';
 jest.mock('../logger', () => ({
   logger: {
     info: jest.fn(),
+    debug: jest.fn(),
     error: jest.fn(),
   },
 }));
@@ -37,7 +38,7 @@ describe('detoxTool', () => {
     expect(result.content[0].text).toContain('creative');
   });
 
-  it('should handle case when no drugs are active', async () => {
+  it('should handle case when no drugs are active (no-op, no write)', async () => {
     const mockState = {
       getActiveDrugs: jest.fn().mockResolvedValue([]),
       clearAllDrugs: jest.fn().mockResolvedValue(undefined),
@@ -46,7 +47,8 @@ describe('detoxTool', () => {
     const result = await detoxTool(mockState);
 
     expect(mockState.getActiveDrugs).toHaveBeenCalledTimes(1);
-    expect(mockState.clearAllDrugs).toHaveBeenCalledTimes(1);
+    // Should NOT call clearAllDrugs when no drugs are active (optimization)
+    expect(mockState.clearAllDrugs).not.toHaveBeenCalled();
     expect(result.content[0].type).toBe('text');
     expect(result.content[0].text).toContain('No active drugs to clear');
     expect(result.content[0].text).toContain('already clean');
@@ -61,7 +63,10 @@ describe('detoxTool', () => {
     const result = await detoxTool(mockState);
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('Error clearing drugs');
-    expect(result.content[0].text).toContain('Firestore error');
+    // Should return generic error message, not expose internal details
+    expect(result.content[0].text).toContain('Failed to clear drugs');
+    expect(result.content[0].text).not.toContain('Firestore error');
+    // Should not attempt to clear when discovery fails
+    expect(mockState.clearAllDrugs).not.toHaveBeenCalled();
   });
 });

@@ -90,7 +90,7 @@ graph TB
 
 ### 1. Directory Structure
 
-```
+```text
 agent-drugs/
 ├── .claude-plugin/
 │   └── plugin.json                    # Plugin manifest
@@ -200,7 +200,7 @@ Claude: [lists available drugs]
 ```
 
 ### Taking a Drug (Immediate Effect)
-```
+```text
 You: /take focus
 
 Claude: [calls take_drug tool]

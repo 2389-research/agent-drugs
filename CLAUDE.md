@@ -113,7 +113,7 @@ Common drugs available in the system:
 ## Usage Examples
 
 ### List Available Drugs
-```
+```text
 You: /drugs
 
 Or: "List all available drugs"
@@ -121,7 +121,7 @@ Or: "What drugs can I take?"
 ```
 
 ### Take a Drug
-```
+```text
 You: /take focus
 
 Or: "Take the focus drug"
@@ -130,14 +130,14 @@ Or: "Take the focus drug"
 Note: Each drug has a fixed duration set by the server. You cannot customize the duration.
 
 ### Check Active Drugs
-```
+```text
 You: "What drugs are currently active?"
 Or: "How much time is left on my drugs?"
 Or: Use the active_drugs tool directly
 ```
 
 ### Remove All Drugs (Detox)
-```
+```text
 You: /detox
 
 Or: "Clear all active drugs"
@@ -148,7 +148,7 @@ This will immediately remove all active drugs from both the current session and 
 
 ### Multiple Drugs
 You can have multiple drugs active simultaneously:
-```
+```text
 You: Take the focus drug
 You: Take the verbose drug
 
