@@ -8,6 +8,7 @@ import { StateManager } from './state-manager.js';
 import { listDrugsTool } from './tools/list-drugs.js';
 import { takeDrugTool } from './tools/take-drug.js';
 import { activeDrugsTool } from './tools/active-drugs.js';
+import { detoxTool } from './tools/detox.js';
 import { logger } from './logger.js';
 
 const app = express();
@@ -28,29 +29,31 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'agent-drugs-mcp' });
 });
 
-// OAuth metadata endpoint - ONLY for local development
-// In production, Claude Code should use the metadata_url from .mcp.json
-// which points directly to Cloud Functions
-if (!process.env.FLY_APP_NAME && process.env.NODE_ENV !== 'production') {
-  app.get('/.well-known/oauth-authorization-server', (req, res) => {
-    const startTime = Date.now();
-    logger.oauth('Metadata discovery request (local dev)');
+// OAuth metadata endpoint
+app.get('/.well-known/oauth-authorization-server', async (req, res) => {
+  const startTime = Date.now();
+  logger.oauth('Metadata discovery request');
 
-    const metadata = {
-      issuer: `http://localhost:${port}`,
-      authorization_endpoint: `http://localhost:${port}/authorize`,
-      token_endpoint: `http://localhost:${port}/token`,
-      registration_endpoint: `http://localhost:${port}/register`,
-      scopes_supported: ['drugs:read', 'drugs:write'],
-      response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code'],
-      code_challenge_methods_supported: ['S256'],
-    };
+  try {
+    // Proxy to Cloud Functions metadata endpoint
+    const metadataEndpoint = 'https://us-central1-agent-drugs.cloudfunctions.net/oauthMetadata';
 
+    const response = await fetch(metadataEndpoint);
+    const metadata = await response.json();
+
+    logger.oauth('Metadata fetched successfully', {
+      duration: Date.now() - startTime
+    });
     res.json(metadata);
     logger.response('GET', '/.well-known/oauth-authorization-server', 200, Date.now() - startTime);
-  });
-}
+  } catch (error) {
+    logger.error('Metadata fetch error', error, { duration: Date.now() - startTime });
+    res.status(503).json({
+      error: 'temporarily_unavailable',
+      error_description: 'OAuth metadata temporarily unavailable'
+    });
+  }
+});
 
 // OAuth client registration endpoint (proxy to Cloud Functions)
 app.post('/register', async (req, res) => {
@@ -413,6 +416,14 @@ app.post('/mcp', async (req, res) => {
             properties: {},
           },
         },
+        {
+          name: 'detox',
+          description: 'Remove all active drugs and return to standard behavior',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+        },
       ];
 
       res.status(200).json({
@@ -442,6 +453,10 @@ app.post('/mcp', async (req, res) => {
 
         case 'active_drugs':
           result = await activeDrugsTool(stateManager);
+          break;
+
+        case 'detox':
+          result = await detoxTool(stateManager);
           break;
 
         default:

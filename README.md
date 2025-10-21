@@ -108,6 +108,9 @@ See [CLAUDE.md](CLAUDE.md) for detailed plugin documentation.
 # Install dependencies
 npm install
 
+# Setup local MCP configuration (for plugin development)
+npm run setup:dev
+
 # Build
 npm run build
 
@@ -117,9 +120,24 @@ export FIREBASE_PROJECT_ID="agent-drugs"
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 npm run dev:stdio
 
-# Run HTTP version (for production-like testing)
+# Run HTTP version (for production-like testing on localhost:3000)
 npm run dev:http
 ```
+
+**For Plugin Development:**
+
+The repository includes example MCP configuration files:
+- `.mcp.json.example` - Production config (points to agent-drugs-mcp.fly.dev)
+- `.mcp.local.json.example` - Development config (points to localhost:3000)
+
+To develop against a local server:
+1. Run `npm run setup:dev` to create `.mcp.local.json`
+2. Start local server: `npm run dev:http`
+3. Claude Code will use your local server for testing
+
+The `.mcp.local.json` file is gitignored and won't be committed.
+
+**Why example files?** Having `.mcp.json` in the project root causes Claude Code to auto-discover it, creating false tool availability during development. Example files prevent this while still documenting the correct format.
 
 ### Testing
 

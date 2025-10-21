@@ -8,11 +8,13 @@ This plugin allows you to take "digital drugs" that modify Claude's behavior thr
 - `list_drugs` - Browse the catalog of available drugs
 - `take_drug` - Activate a drug with optional custom duration
 - `active_drugs` - Check what drugs are currently active and their remaining time
+- `detox` - Remove all active drugs and return to standard behavior
 
 ### Available Commands
 - `/drugs` - Shortcut to list available drugs (appears as `/drugs (plugin:agent-drugs)` in `/help`)
 - `/take <drug>` - Shortcut to take a drug
 - `/active` - Check currently active drugs
+- `/detox` - Remove all active drugs
 
 **First-time use**: Commands will automatically attempt to trigger OAuth authentication if you haven't authenticated yet. Follow the prompts in your browser to sign in with Google or GitHub.
 
@@ -95,6 +97,16 @@ Or: "How much time is left on my drugs?"
 Or: Use the active_drugs tool directly
 ```
 
+### Remove All Drugs (Detox)
+```
+You: /detox
+
+Or: "Clear all active drugs"
+Or: "Remove all behavioral modifications"
+```
+
+This will immediately remove all active drugs from both the current session and future sessions.
+
 ### Multiple Drugs
 You can have multiple drugs active simultaneously:
 ```
@@ -142,6 +154,33 @@ When working on this codebase:
 - Test locally with `npm run dev:http` (HTTP server on :3000)
 - Test hooks with `echo '{}' | node hooks/scripts/session-start.js`
 
+### MCP Configuration Files
+
+The repository includes two example configuration files:
+
+- **`.mcp.json.example`** - Production config for end users
+  - Points to the deployed server at `agent-drugs-mcp.fly.dev`
+  - Shows the correct format for plugin installation
+  - Not auto-discovered by Claude Code (prevents conflicts during development)
+
+- **`.mcp.local.json.example`** - Development config for contributors
+  - Points to `localhost:3000` for local testing
+  - Copy to `.mcp.local.json` to use (gitignored)
+  - Run `npm run setup:dev` to create automatically
+
+**For plugin development:**
+1. Run `npm run setup:dev` to create `.mcp.local.json`
+2. Start the dev server: `npm run dev:http`
+3. Claude Code will use your local server instead of production
+4. The `.mcp.local.json` file is gitignored and won't be committed
+
+**Why this pattern?**
+During development, having `.mcp.json` in the project root causes Claude Code to think the MCP server is installed, even when it's not running. By using `.example` files, we:
+- Provide clear documentation of the config format
+- Prevent auto-discovery conflicts during development
+- Allow developers to test against localhost without affecting the repo
+- Follow the established pattern (like `.env.example`)
+
 ### Local Testing
 See `docs/LOCAL_TESTING.md` for comprehensive local testing guide including:
 - Testing without OAuth
@@ -164,7 +203,7 @@ If automatic OAuth doesn't trigger, use `/mcp` to manually authenticate with the
 ### "No bearer token available"
 The SessionStart hook needs a valid OAuth token. If you see this in logs:
 - Make sure you've authenticated (use any drug tool to trigger OAuth)
-- Check that `.mcp.json` OAuth config is correct
+- Check that your MCP config OAuth settings are correct (see `.mcp.json.example` for reference)
 - Try re-authenticating via Claude Code
 
 ### Drug doesn't take effect immediately

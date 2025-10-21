@@ -40,7 +40,8 @@ agent-drugs/
 ├── .claude-plugin/
 │   └── plugin.json                    # Plugin manifest
 │
-├── .mcp.json                          # MCP server configuration
+├── .mcp.json.example                  # MCP server configuration (example)
+├── .mcp.local.json.example            # Local dev configuration (example)
 │
 ├── hooks/
 │   ├── SessionStart.json              # Hook configuration
@@ -69,12 +70,26 @@ Declares:
 - MCP server to connect
 - Repository and homepage URLs
 
-### 3. MCP Server (`.mcp.json`)
+### 3. MCP Server Configuration
 
-Configures connection to the agent-drugs MCP server:
-- Production: `https://agent-drugs-mcp.fly.dev/mcp`
+**`.mcp.json.example`** - Production configuration template:
+- Points to `https://agent-drugs-mcp.fly.dev/mcp`
 - OAuth 2.1 authentication via Firebase
-- Three tools: `list_drugs`, `take_drug`, `active_drugs`
+- Shows correct format for plugin installation
+- Not auto-discovered (prevents conflicts during development)
+
+**`.mcp.local.json.example`** - Local development template:
+- Points to `localhost:3000` for testing
+- Copy to `.mcp.local.json` (gitignored) for development
+- Use `npm run setup:dev` to create automatically
+
+**Why example files?** Having `.mcp.json` in the project root causes Claude Code to auto-discover it during plugin development, creating false tool availability. Using `.example` files prevents this while still documenting the correct format.
+
+**Tools provided:**
+- `list_drugs` - Browse drug catalog
+- `take_drug` - Activate a drug
+- `active_drugs` - Check active drugs and remaining time
+- `detox` - Remove all active drugs
 
 ### 4. SessionStart Hook (`hooks/SessionStart.json` + `hooks/scripts/session-start.js`)
 

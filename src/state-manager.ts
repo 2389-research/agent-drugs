@@ -109,4 +109,21 @@ export class StateManager {
 
     return activeDrugs;
   }
+
+  /**
+   * Clear all active drugs for this agent
+   * Used by the "detox" command to remove all behavioral modifications
+   */
+  async clearAllDrugs(): Promise<void> {
+    const docRef = this.db
+      .collection('active_drugs')
+      .doc(`${this.userId}_${this.agentId}`);
+
+    await docRef.set({
+      userId: this.userId,
+      agentId: this.agentId,
+      drugs: [],
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  }
 }

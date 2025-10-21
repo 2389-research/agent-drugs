@@ -69,14 +69,19 @@ npm start
 
 ### Method 1: Use .mcp.local.json (Recommended)
 
-Copy the template from the project root:
+Create a local MCP configuration from the example:
 
 ```bash
-# .mcp.local.json is already created with the correct local configuration
-cat .mcp.local.json
+# Copy the example to create your local config
+npm run setup:dev
+
+# Or manually:
+cp .mcp.local.json.example .mcp.local.json
 ```
 
-This file is configured to use the local OAuth metadata endpoint, which proxies all OAuth operations to production while serving the MCP server locally.
+This creates `.mcp.local.json` in your project root, which Claude Code will auto-discover. The file points to `localhost:3000` without OAuth (for simpler local testing).
+
+**Note:** The `.mcp.local.json` file is gitignored and won't be committed. The repository includes `.mcp.local.json.example` as a template for developers.
 
 ### Method 2: Add to Claude Code config
 
